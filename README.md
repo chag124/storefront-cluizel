@@ -70,5 +70,5 @@ La plus récente en haut.
 
 | Date       | Itération | Modifications mises en production                                                                   | Étapes appliquées   | Tag    | Vérifié |
 | ---------- | --------- | --------------------------------------------------------------------------------------------------- | ------------------- | ------ | ------- |
-| JJ/MM/2026 | IT-2      | Apparence générale, catalogue (3 catégories, 9 produits simples), grille de la carte, fiche produit | 1 et 3              | `it-2` |         |
+| JJ/MM/2026 | IT-2      | Apparence générale, catalogue (3 catégories, 9 produits simples), grille de la carte, fiche produit | 1 et 3              | `it-2` | Oui     |
 | 16/10/2026 | IT-1      | Mise en place des environnements de Dev et de Prod, thème enfant Storefront                         | Premier déploiement | `it-1` | Oui     |
