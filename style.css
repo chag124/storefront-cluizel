@@ -1,8 +1,746 @@
 /*
- Theme Name:   Storefront Child – Cluizel
- Description:  Thème enfant de Storefront pour la SAé 3.01 (click & collect)
+ Theme Name:   Storefront Child – Cluizel Paris
+ Description:  Thème enfant de Storefront pour la SAé 3.01 (click & collect Cluizel Paris)
  Author:       Charline Gautier
  Template:     storefront
- Version:      1.0.0
+ Version:      2.0.0
  Text Domain:  storefront-child
 */
+
+/* ==========================================================================
+   1. Variables de la maquette
+   ========================================================================== */
+:root {
+  --cz-noir: #000000;
+  --cz-blanc: #ffffff;
+  --cz-beige: #f1ede8;
+  --cz-beige-clair: #f8f5f0;
+  --cz-font-titre: "Montserrat", sans-serif;
+  --cz-font-texte: "Barlow", sans-serif;
+  --cz-font-produit: "Poppins", sans-serif;
+  --cz-radius: 20px;
+  --cz-radius-sm: 12px;
+  --cz-pill: 999px;
+}
+
+/* ==========================================================================
+   2. Base
+   ========================================================================== */
+body {
+  font-family: var(--cz-font-texte);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--cz-noir);
+  background: var(--cz-blanc);
+}
+
+h1, h2, h3, h4, h5, h6,
+.entry-title,
+.product_title {
+  font-family: var(--cz-font-titre);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--cz-noir);
+}
+
+a {
+  color: var(--cz-noir);
+}
+
+@media (min-width: 768px) {
+  .col-full {
+    max-width: 1240px;
+  }
+}
+
+/* Boutons */
+.cz-btn,
+.button,
+button.button,
+input[type="submit"] {
+  font-family: var(--cz-font-texte);
+  font-weight: 400;
+  border-radius: var(--cz-pill);
+}
+
+.cz-btn {
+  display: inline-block;
+  padding: 10px 30px;
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cz-btn:hover,
+.cz-btn:focus {
+  color: var(--cz-blanc);
+  opacity: 0.85;
+}
+
+.cz-btn-outline {
+  display: inline-block;
+  padding: 9px 11px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+  color: var(--cz-noir);
+  font-family: var(--cz-font-produit);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cz-btn-outline:hover,
+.cz-btn-outline:focus {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+/* ==========================================================================
+   3. En-tête
+   ========================================================================== */
+.cz-topbar {
+  padding: 10px 16px;
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+  font-size: 14px;
+  text-align: center;
+}
+
+.site-header {
+  margin-bottom: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--cz-noir);
+  background: var(--cz-blanc);
+}
+
+.cz-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  min-height: 95px;
+  padding: 16px 0;
+}
+
+.cz-logo,
+.cz-logo:hover {
+  font-family: var(--cz-font-titre);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  list-style: none;
+}
+
+.cz-menu a,
+.cz-account {
+  font-size: 15px;
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-menu a:hover,
+.cz-menu .current-menu-item > a,
+.cz-account:hover {
+  text-decoration: underline;
+}
+
+.cz-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+@media (max-width: 767px) {
+  .cz-nav {
+    order: 3;
+    width: 100%;
+  }
+}
+
+/* Fil d'Ariane */
+.storefront-breadcrumb {
+  margin: 0;
+  padding: 24px 0 0;
+}
+
+.woocommerce-breadcrumb {
+  margin: 0;
+  font-size: 15px;
+  color: var(--cz-noir);
+}
+
+.woocommerce-breadcrumb a {
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.woocommerce-breadcrumb a:first-of-type::before {
+  display: none;
+}
+
+.site-content {
+  padding-top: 32px;
+}
+
+/* ==========================================================================
+   4. Pied de page
+   ========================================================================== */
+.site-footer {
+  padding: 56px 0;
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+.cz-footer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  gap: 32px;
+}
+
+.site-footer .cz-footer .cz-logo,
+.site-footer .cz-footer-links a:not(.button) {
+  color: var(--cz-blanc) !important;
+  text-decoration: none;
+}
+
+.cz-footer-links {
+  margin: 0;
+  list-style: none;
+}
+
+.cz-footer-links a {
+  font-size: 15px;
+}
+
+.cz-footer-links a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .cz-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   5. Page « La carte » (boutique et catégories)
+   ========================================================================== */
+.cz-page-title {
+  margin: 0 0 48px;
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 1.1;
+}
+
+.cz-catalogue .woocommerce-products-header {
+  display: none;
+}
+
+.cz-result-count {
+  margin: 0 0 40px;
+  font-size: 15px;
+}
+
+/* Barre latérale */
+.cz-sidebar-title {
+  margin: 0 0 24px;
+  font-size: 15px;
+}
+
+.cz-sidebar-title--line {
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--cz-noir);
+}
+
+.cz-cat-list {
+  margin: 0 0 40px;
+  list-style: none;
+}
+
+.cz-cat-list a {
+  display: flex;
+  justify-content: space-between;
+  max-width: 230px;
+  padding: 14px 0;
+  font-size: 15px;
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-cat-list a:hover,
+.cz-cat-list .is-active a {
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.cz-pill {
+  display: inline-block;
+  padding: 9px 40px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  font-size: 15px;
+}
+
+/* Mise en page de la carte : barre latérale à gauche, grille à droite */
+.cz-catalogue .site-content .col-full {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 60px;
+}
+
+.cz-catalogue .site-content .col-full::before,
+.cz-catalogue .site-content .col-full::after {
+  display: none;
+}
+
+.cz-catalogue .site-content .col-full > * {
+  grid-column: 1 / -1;
+}
+
+.cz-catalogue #primary,
+.cz-catalogue #secondary {
+  float: none !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .cz-catalogue .site-content .col-full {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .cz-catalogue .site-content .col-full > #secondary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cz-catalogue .site-content .col-full > #primary {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+/* Grille de produits */
+.site-main ul.products {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 54px 30px;
+  margin: 0 0 40px;
+}
+
+.site-main ul.products::before,
+.site-main ul.products::after,
+.single-product div.product::before,
+.single-product div.product::after {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  .site-main ul.products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 599px) {
+  .site-main ul.products {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Carte produit */
+.site-main ul.products li.product {
+  display: flex;
+  flex-direction: column;
+  float: none !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 20px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+  text-align: left;
+}
+
+ul.products li.product .woocommerce-LoopProduct-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-card-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 24px;
+  overflow: hidden;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-blanc);
+}
+
+ul.products li.product .cz-card-media img {
+  width: auto;
+  max-width: 70%;
+  max-height: 75%;
+  margin: 0;
+  object-fit: contain;
+}
+
+.cz-card-cat {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+ul.products li.product .woocommerce-loop-product__title {
+  margin: 0 0 22px;
+  padding: 0;
+  font-family: var(--cz-font-produit);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.cz-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+
+ul.products li.product .cz-card-footer .price {
+  display: block;
+  margin: 0;
+  font-family: var(--cz-font-produit);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cz-noir);
+}
+
+/* Pagination */
+.woocommerce-pagination .page-numbers li .page-numbers {
+  border-radius: var(--cz-pill);
+}
+
+/* ==========================================================================
+   6. Fiche produit
+   ========================================================================== */
+.single-product div.product {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  column-gap: 60px;
+}
+
+.single-product div.product .woocommerce-product-gallery {
+  grid-column: 1;
+  grid-row: 1;
+  float: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 60px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+}
+
+.single-product div.product .woocommerce-product-gallery img {
+  width: auto;
+  max-height: 340px;
+  margin: 0 auto;
+}
+
+.single-product div.product .woocommerce-product-gallery .woocommerce-product-gallery__trigger {
+  display: none !important;
+}
+
+.cz-product-infos {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 44px 0 0;
+  padding: 24px 20px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+  font-size: 15px;
+}
+
+.cz-product-infos dt {
+  font-weight: 400;
+}
+
+.cz-product-infos dd {
+  margin: 12px 0 20px;
+}
+
+.cz-product-infos dd:last-child {
+  margin-bottom: 0;
+}
+
+.single-product div.product .summary {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  float: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.single-product div.product .product_title {
+  margin: 48px 0 32px;
+  font-size: clamp(36px, 4.4vw, 56px);
+  line-height: 1.15;
+}
+
+.woocommerce-product-details__short-description {
+  margin-bottom: 56px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.woocommerce-product-details__short-description p {
+  margin: 0;
+}
+
+.single-product div.product p.price {
+  margin: 0 0 36px;
+  font-family: var(--cz-font-texte);
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--cz-noir);
+}
+
+/* Formulaire : options, quantité, bouton, retrait */
+.single-product div.product form.cart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.single-product div.product form.cart::before,
+.single-product div.product form.cart::after {
+  display: none;
+}
+
+.cz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.cz-option-row {
+  display: grid;
+  grid-template-columns: 157px minmax(0, 1fr);
+  align-items: center;
+}
+
+.cz-option-row label,
+.cz-retrait-title {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--cz-noir);
+}
+
+.cz-select {
+  width: 100%;
+  height: 47px;
+  padding: 0 48px 0 20px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") no-repeat right 22px center;
+  color: var(--cz-noir);
+  font-family: var(--cz-font-texte);
+  font-size: 15px;
+  box-shadow: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cz-select:focus {
+  outline: 2px solid var(--cz-noir);
+  outline-offset: 2px;
+}
+
+.single-product div.product form.cart .quantity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  float: none;
+  width: 128px;
+  height: 52px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+}
+
+.quantity .qty {
+  width: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 15px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.quantity .qty::-webkit-outer-spin-button,
+.quantity .qty::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.cz-qty-btn {
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--cz-noir);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.cz-qty-btn:hover,
+.cz-qty-btn:focus {
+  background: none;
+  color: var(--cz-noir);
+}
+
+.single-product div.product .single_add_to_cart_button {
+  flex: 1;
+  height: 52px;
+  margin: 0;
+  padding: 0 24px;
+  border-radius: var(--cz-pill);
+  background: var(--cz-noir) !important;
+  color: var(--cz-blanc) !important;
+  font-family: var(--cz-font-texte);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+/* Retrait en boutique */
+.cz-retrait {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin-top: 44px;
+  padding: 24px 20px 20px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+}
+
+@media (max-width: 599px) {
+  .cz-option-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+/* Pour compléter votre commande */
+.single-product div.product .related {
+  grid-column: 1 / -1;
+  float: none !important;
+  width: 100% !important;
+  margin: 100px 0 0 !important;
+}
+
+.single-product div.product .related > h2 {
+  text-align: left !important;
+  margin-bottom: 56px;
+  font-size: clamp(28px, 3vw, 36px);
+}
+
+.related ul.products li.product {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  align-items: center;
+  column-gap: 30px;
+  padding: 0;
+  background: none;
+}
+
+.related ul.products li.product .woocommerce-LoopProduct-link {
+  display: contents;
+}
+
+.related .cz-card-media {
+  grid-row: 1 / span 2;
+  width: 84px;
+  height: 76px;
+  margin: 0;
+  aspect-ratio: auto;
+  background: var(--cz-beige-clair);
+}
+
+.related ul.products li.product .woocommerce-loop-product__title {
+  align-self: end;
+  margin: 0 0 8px;
+}
+
+.related .cz-card-cat,
+.related .cz-btn-outline {
+  display: none;
+}
+
+.related .cz-card-footer {
+  align-self: start;
+  margin: 0;
+}
+
+.related ul.products li.product .cz-card-footer .price {
+  font-family: var(--cz-font-texte);
+  font-weight: 400;
+}
+
+/* Fiche produit sur mobile */
+@media (max-width: 767px) {
+  .single-product div.product {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .single-product div.product .woocommerce-product-gallery,
+  .single-product div.product .summary,
+  .cz-product-infos {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .single-product div.product .summary {
+    order: 1;
+  }
+
+  .cz-product-infos {
+    order: 2;
+  }
+
+  .single-product div.product .related {
+    order: 3;
+  }
+
+  .single-product div.product .woocommerce-product-gallery {
+    padding: 32px;
+  }
+}
