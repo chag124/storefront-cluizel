@@ -1612,3 +1612,22 @@ add_action( 'storefront_before_content', function () {
 		echo '<div class="col-full"><div class="woocommerce-message cz-notice" role="status">Votre compte a bien été supprimé.</div></div>';
 	}
 }, 5 );
+
+/* Texte de confidentialité de l'inscription en français */
+add_filter( 'woocommerce_get_privacy_policy_text', function ( $text, $type ) {
+	if ( 'registration' === $type ) {
+		return 'Vos données personnelles servent à gérer votre compte et vos commandes, comme indiqué dans notre [privacy_policy].';
+	}
+	return $text;
+}, 10, 2 );
+
+/* Après la déconnexion : retour à la page Mon compte avec un message */
+add_filter( 'woocommerce_logout_default_redirect_url', function () {
+	return add_query_arg( 'deconnecte', '1', wc_get_page_permalink( 'myaccount' ) );
+} );
+
+add_action( 'woocommerce_before_customer_login_form', function () {
+	if ( isset( $_GET['deconnecte'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		echo '<div class="woocommerce-message" role="status">Déconnexion réussie. À bientôt chez Cluizel !</div>';
+	}
+} );

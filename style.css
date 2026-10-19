@@ -2925,3 +2925,76 @@ body.woocommerce-cart .cart_totals table.shop_table td::before {
     white-space: normal;
   }
 }
+
+/* Mes informations : même espace au-dessus de « Supprimer mon compte » */
+.cz-infos form.edit-account,
+.cz-infos form.cz-delete-account {
+  margin: 0;
+}
+
+/* Messages WooCommerce du compte aux couleurs de la charte */
+.woocommerce-account .woocommerce-info,
+.woocommerce-account .woocommerce-message {
+  padding: 18px 24px;
+  border: 0;
+  border-left: 4px solid var(--cz-noir);
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-beige);
+  color: var(--cz-noir);
+}
+
+.woocommerce-account .woocommerce-info::before,
+.woocommerce-account .woocommerce-message::before {
+  display: none;
+}
+
+.woocommerce-account .woocommerce-info a,
+.woocommerce-account .woocommerce-message a {
+  color: var(--cz-noir);
+  text-decoration: underline;
+}
+
+/* Connexion / inscription (page affichée après la déconnexion) :
+   les colonnes Storefront (41 % flottantes) sont neutralisées */
+.woocommerce-account:not(.logged-in) .u-columns.col2-set {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 40px;
+  width: 100% !important;
+}
+
+.woocommerce-account:not(.logged-in) .u-columns .u-column1,
+.woocommerce-account:not(.logged-in) .u-columns .u-column2 {
+  float: none !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 40px 30px 36px;
+}
+
+/* Remplissage automatique du navigateur : pas de fond jaune */
+.woocommerce-account input:-webkit-autofill,
+.woocommerce-account input:-webkit-autofill:hover,
+.woocommerce-account input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--cz-blanc) inset;
+  -webkit-text-fill-color: var(--cz-noir);
+}
+
+.woocommerce-account .woocommerce-form-login__rememberme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+@media (max-width: 767px) {
+  .woocommerce-account:not(.logged-in) .u-columns.col2-set {
+    grid-template-columns: 1fr !important;
+    gap: 24px;
+  }
+
+  .woocommerce-account:not(.logged-in) .u-columns .u-column1,
+  .woocommerce-account:not(.logged-in) .u-columns .u-column2 {
+    padding: 28px 16px;
+  }
+}
