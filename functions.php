@@ -496,7 +496,7 @@ add_action( 'woocommerce_before_add_to_cart_button', function () {
 /* Cadre « Retrait en boutique » dans le formulaire, après le bouton */
 add_action( 'woocommerce_after_add_to_cart_button', function () {
 	global $product;
-	if ( ! $product || ! $product->is_type( 'simple' ) ) {
+	if ( ! $product || ! $product->is_type( array( 'simple', 'variable' ) ) ) {
 		return;
 	}
 	echo '<div class="cz-retrait">';
@@ -512,7 +512,7 @@ add_action( 'woocommerce_after_add_to_cart_button', function () {
 /* Vérification : la boutique de retrait est obligatoire */
 add_filter( 'woocommerce_add_to_cart_validation', function ( $passed, $product_id ) {
 	$product = wc_get_product( $product_id );
-	if ( ! $product || ! $product->is_type( 'simple' ) || ! isset( $_POST['cz_boutique'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+	if ( ! $product || ! $product->is_type( array( 'simple', 'variable' ) ) || ! isset( $_POST['cz_boutique'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 		return $passed;
 	}
 	$boutique = sanitize_text_field( wp_unslash( $_POST['cz_boutique'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
@@ -526,11 +526,11 @@ add_filter( 'woocommerce_add_to_cart_validation', function ( $passed, $product_i
 /* Enregistrement des choix avec l'article du panier */
 add_filter( 'woocommerce_add_cart_item_data', function ( $data, $product_id ) {
 	$product = wc_get_product( $product_id );
-	if ( ! $product || ! $product->is_type( 'simple' ) ) {
+	if ( ! $product || ! $product->is_type( array( 'simple', 'variable' ) ) ) {
 		return $data;
 	}
-	$options = cz_product_options( $product );
-	foreach ( cz_option_fields() as $key => $label ) {
+	$options = $product->is_type( 'simple' ) ? cz_product_options( $product ) : array();
+	foreach ( $options ? cz_option_fields() : array() as $key => $label ) {
 		if ( isset( $_POST[ 'cz_' . $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			$value = sanitize_text_field( wp_unslash( $_POST[ 'cz_' . $key ] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 			if ( in_array( $value, $options[ $key ], true ) ) {
@@ -619,3 +619,74 @@ add_filter( 'woocommerce_related_products', function ( $ids, $product_id ) {
 	}
 	return $ids;
 }, 10, 2 );
+
+/* =========================================================================
+ * 11. Produits variables (itération 3)
+ * ====================================================================== */
+
+/* Listes de déclinaisons : même apparence que la maquette */
+add_filter( 'woocommerce_dropdown_variation_attribute_options_args', function ( $args ) {
+	$args['class'] = trim( ( $args['class'] ?? '' ) . ' cz-select' );
+	return $args;
+} );
+
+/* Toujours renvoyer le prix de la déclinaison choisie, même si deux prix sont égaux */
+add_filter( 'woocommerce_show_variation_price', '__return_true' );
+
+/* Prix d'un produit variable : le plus bas (carte et fiche avant choix) */
+add_filter( 'woocommerce_variable_price_html', function ( $html, $product ) {
+	return wc_price( $product->get_variation_price( 'min', true ) );
+}, 10, 2 );
+
+/* Niveaux de stock : Disponible / Stock faible / Épuisé */
+function cz_low_stock_amount( $product ) {
+	if ( function_exists( 'wc_get_low_stock_amount' ) ) {
+		return (int) wc_get_low_stock_amount( $product );
+	}
+	return (int) get_option( 'woocommerce_notify_low_stock_amount', 2 );
+}
+
+add_filter( 'woocommerce_get_availability', function ( $availability, $product ) {
+	if ( ! $product->is_in_stock() ) {
+		$availability['availability'] = 'Épuisé';
+		$availability['class']        = 'out-of-stock';
+		return $availability;
+	}
+	$qty = $product->get_stock_quantity();
+	if ( $product->managing_stock() && null !== $qty && $qty <= cz_low_stock_amount( $product ) ) {
+		$availability['availability'] = sprintf( 'Stock faible – plus que %d', $qty );
+		$availability['class']        = 'in-stock low-stock';
+		return $availability;
+	}
+	$availability['availability'] = 'Disponible';
+	$availability['class']        = 'in-stock';
+	return $availability;
+}, 20, 2 );
+
+/* Le prix en haut de la fiche suit la déclinaison sélectionnée */
+add_action( 'wp_footer', function () {
+	if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+		return;
+	}
+	?>
+	<script>
+	(function ($) {
+		if (!$) return;
+		$(function () {
+			var $price = $('.summary > p.price').first();
+			var original = $price.html();
+			$('form.variations_form')
+				.on('found_variation', function (event, variation) {
+					if (variation.price_html) {
+						var inner = $('<div>').html(variation.price_html).find('.price').html();
+						$price.html(inner || variation.price_html);
+					}
+				})
+				.on('reset_data', function () {
+					$price.html(original);
+				});
+		});
+	})(window.jQuery);
+	</script>
+	<?php
+}, 30 );
