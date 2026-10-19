@@ -1331,3 +1331,284 @@ add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_a
 	}
 	echo '<p>' . nl2br( esc_html( $s['message'] ) ) . '</p>';
 }, 10, 3 );
+
+/* =========================================================================
+ * 16. Compte client (itération 7)
+ *     Connexion / inscription et espace « Mon compte » aux couleurs de la charte.
+ * ====================================================================== */
+
+/* Menu du compte : libellés en français simple, sans « Téléchargements » */
+add_filter( 'woocommerce_account_menu_items', function ( $items ) {
+	$labels = array(
+		'dashboard'       => 'Tableau de bord',
+		'orders'          => 'Mes commandes',
+		'edit-address'    => 'Mes adresses',
+		'edit-account'    => 'Mes informations',
+		'customer-logout' => 'Déconnexion',
+	);
+	$menu = array();
+	foreach ( $labels as $key => $label ) {
+		if ( isset( $items[ $key ] ) ) {
+			$menu[ $key ] = $label;
+		}
+	}
+	return $menu;
+}, 20 );
+
+/* Titre de la page : toujours « Mon compte » (comme sur la maquette) */
+add_filter( 'the_title', function ( $title, $id = null ) {
+	if ( function_exists( 'is_account_page' ) && is_account_page() && in_the_loop() && (int) $id === (int) wc_get_page_id( 'myaccount' ) ) {
+		return 'Mon compte';
+	}
+	return $title;
+}, 20, 2 );
+
+/* Pas de fil d'Ariane sur le compte (le titre suffit, comme sur les autres pages du parcours) */
+add_action( 'wp', function () {
+	if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+		remove_action( 'storefront_before_content', 'woocommerce_breadcrumb', 10 );
+	}
+}, 20 );
+
+/* Statut « Prête à retirer » (étape 3 du suivi de commande) */
+add_action( 'init', function () {
+	register_post_status(
+		'wc-ready-pickup',
+		array(
+			'label'                     => 'Prête à retirer',
+			'public'                    => true,
+			'exclude_from_search'       => false,
+			'show_in_admin_all_list'    => true,
+			'show_in_admin_status_list' => true,
+			/* translators: %s: nombre de commandes */
+			'label_count'               => _n_noop( 'Prête à retirer <span class="count">(%s)</span>', 'Prêtes à retirer <span class="count">(%s)</span>' ),
+		)
+	);
+} );
+
+add_filter( 'wc_order_statuses', function ( $statuses ) {
+	$new = array();
+	foreach ( $statuses as $key => $label ) {
+		$new[ $key ] = $label;
+		if ( 'wc-processing' === $key ) {
+			$new['wc-ready-pickup'] = 'Prête à retirer';
+		}
+	}
+	return $new;
+} );
+
+/* Statuts d'une commande « en cours » */
+function cz_active_order_statuses() {
+	return array( 'pending', 'on-hold', 'processing', 'ready-pickup' );
+}
+
+/* Étapes du suivi : retrait ou livraison */
+function cz_order_steps( $order ) {
+	$labels = cz_order_is_pickup( $order )
+		? array( 'Commande reçue', 'En préparation', 'Prête à retirer', 'Retirée' )
+		: array( 'Commande reçue', 'En préparation', 'Expédiée', 'Livrée' );
+	$map = array(
+		'pending'      => 0,
+		'on-hold'      => 0,
+		'processing'   => 1,
+		'ready-pickup' => 2,
+		'completed'    => 3,
+	);
+	$current = $map[ $order->get_status() ] ?? 0;
+	return array( $labels, $current );
+}
+
+/* Adresse sur une ligne : « 15 rue Claude Bernard, Limoges 87000 » */
+function cz_address_line( $customer_id, $type ) {
+	$get   = fn( $field ) => trim( (string) get_user_meta( $customer_id, $type . '_' . $field, true ) );
+	$parts = array_filter( array( $get( 'address_1' ), $get( 'address_2' ), trim( $get( 'city' ) . ' ' . $get( 'postcode' ) ) ) );
+	return implode( ', ', $parts );
+}
+
+/* Tableau de bord : salutation et « Ma commande en cours » */
+add_action( 'woocommerce_account_dashboard', function () {
+	$user = wp_get_current_user();
+	$name = $user->first_name ? $user->first_name : $user->display_name;
+	echo '<h2 class="cz-account-hello">Bonjour ' . esc_html( $name ) . ', bienvenue dans votre espace Cluizel</h2>';
+
+	$orders = wc_get_orders(
+		array(
+			'customer_id' => get_current_user_id(),
+			'status'      => cz_active_order_statuses(),
+			'limit'       => 1,
+			'orderby'     => 'date',
+			'order'       => 'DESC',
+		)
+	);
+
+	echo '<section class="cz-card cz-current-order">';
+	echo '<div class="cz-current-order-head"><h2 class="cz-card-title">Ma commande en cours</h2>';
+
+	if ( ! $orders ) {
+		echo '</div><p class="cz-current-order-empty">Vous n’avez pas de commande en cours.</p>';
+		echo '<a class="cz-btn" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">Découvrir la carte</a>';
+		echo '</section>';
+		return;
+	}
+
+	$order = $orders[0];
+	list( $labels, $current ) = cz_order_steps( $order );
+
+	echo '<a class="cz-current-order-number" href="' . esc_url( $order->get_view_order_url() ) . '">Numéro de commande : N°' . esc_html( $order->get_order_number() ) . '</a></div>';
+
+	echo '<ol class="cz-track" aria-label="Suivi de la commande">';
+	foreach ( $labels as $i => $label ) {
+		$class = $i <= $current ? 'is-done' : '';
+		$aria  = $i === $current ? ' aria-current="step"' : '';
+		echo '<li class="' . esc_attr( $class ) . '"' . $aria . '><span class="cz-track-bar" aria-hidden="true"></span><span class="cz-track-label">' . esc_html( $label ) . '</span></li>'; // phpcs:ignore WordPress.Security.EscapeOutput
+	}
+	echo '</ol>';
+
+	echo '<div class="cz-current-order-box">';
+	echo '<p class="cz-current-order-status">' . esc_html( $labels[ $current ] ) . '</p>';
+
+	if ( cz_order_is_pickup( $order ) ) {
+		$s    = cz_pickup_settings();
+		$rows = cz_pickup_hours_rows( $s['hours'] );
+		echo '<p>Retrait en boutique : ' . esc_html( $s['address'] ) . '</p>';
+		if ( $rows ) {
+			echo '<p>Horaires :</p><table class="cz-hours"><tbody>';
+			foreach ( $rows as $row ) {
+				echo '<tr><th scope="row">' . esc_html( $row[0] ) . '</th><td>' . esc_html( $row[1] ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+		echo '<p>' . nl2br( esc_html( $s['message'] ) ) . '</p>';
+	} elseif ( $order->get_formatted_shipping_address() ) {
+		echo '<p>Livraison à :</p><address>' . wp_kses_post( $order->get_formatted_shipping_address() ) . '</address>';
+	}
+
+	echo '</div></section>';
+} );
+
+/* Le texte d'accueil WooCommerce est remplacé par le nôtre */
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	if ( 'woocommerce' !== $domain ) {
+		return $translation;
+	}
+	$replace = array(
+		'Login'                     => 'Se connecter',
+		'Register'                  => 'Créer un compte',
+		'Log in'                    => 'Se connecter',
+		'Lost your password?'       => 'Mot de passe oublié ?',
+		'Remember me'               => 'Se souvenir de moi',
+		'Username or email address' => 'E-mail ou identifiant',
+	);
+	return $replace[ $text ] ?? $translation;
+}, 20, 3 );
+
+
+/* Inscription : prénom et nom demandés, puis enregistrés sur le compte */
+add_action( 'woocommerce_register_form_start', function () {
+	// phpcs:disable WordPress.Security.NonceVerification
+	$first = isset( $_POST['billing_first_name'] ) ? sanitize_text_field( wp_unslash( $_POST['billing_first_name'] ) ) : '';
+	$last  = isset( $_POST['billing_last_name'] ) ? sanitize_text_field( wp_unslash( $_POST['billing_last_name'] ) ) : '';
+	// phpcs:enable
+	?>
+	<div class="cz-form-grid">
+		<p class="woocommerce-form-row form-row">
+			<label for="reg_billing_first_name">Prénom</label>
+			<input type="text" class="woocommerce-Input input-text" name="billing_first_name" id="reg_billing_first_name" autocomplete="given-name" value="<?php echo esc_attr( $first ); ?>" required>
+		</p>
+		<p class="woocommerce-form-row form-row">
+			<label for="reg_billing_last_name">Nom</label>
+			<input type="text" class="woocommerce-Input input-text" name="billing_last_name" id="reg_billing_last_name" autocomplete="family-name" value="<?php echo esc_attr( $last ); ?>" required>
+		</p>
+	</div>
+	<?php
+} );
+
+add_filter( 'woocommerce_registration_errors', function ( $errors ) {
+	// phpcs:disable WordPress.Security.NonceVerification
+	if ( empty( $_POST['billing_first_name'] ) ) {
+		$errors->add( 'billing_first_name_error', 'Merci d’indiquer votre prénom.' );
+	}
+	if ( empty( $_POST['billing_last_name'] ) ) {
+		$errors->add( 'billing_last_name_error', 'Merci d’indiquer votre nom.' );
+	}
+	// phpcs:enable
+	return $errors;
+} );
+
+add_action( 'woocommerce_created_customer', function ( $customer_id ) {
+	// phpcs:disable WordPress.Security.NonceVerification
+	foreach ( array( 'first_name', 'last_name' ) as $field ) {
+		if ( ! empty( $_POST[ 'billing_' . $field ] ) ) {
+			$value = sanitize_text_field( wp_unslash( $_POST[ 'billing_' . $field ] ) );
+			update_user_meta( $customer_id, $field, $value );
+			update_user_meta( $customer_id, 'billing_' . $field, $value );
+		}
+	}
+	// phpcs:enable
+} );
+
+/* Connexion depuis la page de commande : retour à la commande après connexion */
+add_action( 'woocommerce_login_form_end', function () {
+	$redirect = isset( $_GET['redirect_to'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ), '' ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+	if ( $redirect ) {
+		echo '<input type="hidden" name="redirect" value="' . esc_url( $redirect ) . '">';
+	}
+} );
+
+/* Mes informations : téléphone enregistré avec le compte */
+add_action( 'woocommerce_save_account_details', function ( $user_id ) {
+	if ( isset( $_POST['account_phone'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- nonce vérifié par WooCommerce
+		update_user_meta( $user_id, 'billing_phone', sanitize_text_field( wp_unslash( $_POST['account_phone'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
+	}
+} );
+
+/* Supprimer mon compte (client uniquement, sans commande en cours) */
+add_action( 'template_redirect', function () {
+	if ( empty( $_POST['cz_delete_account'] ) || ! is_user_logged_in() ) { // phpcs:ignore WordPress.Security.NonceVerification
+		return;
+	}
+	$nonce = isset( $_POST['cz-delete-account-nonce'] ) ? sanitize_key( wp_unslash( $_POST['cz-delete-account-nonce'] ) ) : '';
+	if ( ! wp_verify_nonce( $nonce, 'cz_delete_account' ) ) {
+		wc_add_notice( 'La demande a expiré, merci de réessayer.', 'error' );
+		return;
+	}
+
+	$user_id = get_current_user_id();
+	if ( user_can( $user_id, 'manage_woocommerce' ) ) {
+		wc_add_notice( 'Un compte administrateur ne peut pas être supprimé depuis cette page.', 'error' );
+		return;
+	}
+
+	$active = wc_get_orders(
+		array(
+			'customer_id' => $user_id,
+			'status'      => cz_active_order_statuses(),
+			'limit'       => 1,
+			'return'      => 'ids',
+		)
+	);
+	if ( $active ) {
+		wc_add_notice( 'Vos commandes en cours doivent être retirées ou annulées avant de supprimer votre compte.', 'error' );
+		return;
+	}
+
+	require_once ABSPATH . 'wp-admin/includes/user.php';
+	$admins = get_users(
+		array(
+			'role'   => 'administrator',
+			'number' => 1,
+			'fields' => 'ID',
+		)
+	);
+	wp_logout();
+	wp_delete_user( $user_id, $admins ? (int) $admins[0] : null );
+	wp_safe_redirect( add_query_arg( 'compte-supprime', '1', home_url( '/' ) ) );
+	exit;
+} );
+
+/* Message après la suppression du compte */
+add_action( 'storefront_before_content', function () {
+	if ( isset( $_GET['compte-supprime'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		echo '<div class="col-full"><div class="woocommerce-message cz-notice" role="status">Votre compte a bien été supprimé.</div></div>';
+	}
+}, 5 );

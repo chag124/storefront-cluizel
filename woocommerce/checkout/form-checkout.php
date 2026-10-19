@@ -35,7 +35,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
 						<h2 class="cz-card-title">Mes coordonnées</h2>
 						<?php do_action( 'woocommerce_checkout_billing' ); ?>
 						<?php if ( ! is_user_logged_in() ) : ?>
-							<a class="cz-login-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">J’ai déjà un compte</a>
+							<a class="cz-login-link" href="<?php echo esc_url( add_query_arg( 'redirect_to', rawurlencode( wc_get_checkout_url() ), wc_get_page_permalink( 'myaccount' ) ) ); ?>">J’ai déjà un compte</a>
 						<?php endif; ?>
 					</section>
 
