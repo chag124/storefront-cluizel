@@ -68,8 +68,11 @@ En cas de problème : `wp db import ~/sauvegarde-prod.sql` restaure la base de d
 
 La plus récente en haut.
 
-| Date       | Itération | Modifications mises en production                                                                                                                                                                            | Étapes appliquées   | Tag    | Vérifié |
-| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------ | ------- |
-| 19/10/2026 | IT-3      | Produits variables (Format, Supplément, Emballage) avec prix et niveaux de stock pour Plantation Los Anconès, Coffret Mendiants N°25 et Coffret Cappuccino ; sélecteur d'options aux couleurs de la maquette | 1 et 3              | `it-3` |         |
-| 16/10/2026 | IT-2      | Apparence générale, catalogue (3 catégories, 9 produits simples), grille de la carte, fiche produit                                                                                                          | 1 et 3              | `it-2` | Oui     |
-| 16/10/2026 | IT-1      | Mise en place des environnements de Dev et de Prod, thème enfant Storefront                                                                                                                                  | Premier déploiement | `it-1` | Oui     |
+| Date       | Itération | Modifications mises en production                                                                                                                                       | Étapes appliquées           | Tag    | Vérifié |
+| ---------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------ | ------- |
+| 19/10/2026 | IT-4      | Champs personnalisés SCF « Composition et valeurs nutritionnelles » (cacao, poids net, origine, valeurs pour 100 g) renseignés sur 3 produits et affichés avant le prix | 1 et 3 (déployée avec IT-3) | `it-4` |         |
+
+| 19/10/2026 | IT-3 | Produits variables (Format, Supplément, Emballage) avec prix et niveaux de stock pour 3 produits ; sélecteur d'options aux couleurs de la maquette | 1 et 3 (mise en ligne retardée : serveur mmi.unilim.fr indisponible, déployée avec IT-4) | `it-3` | |
+
+| 16/10/2026 | IT-2 | Apparence générale, catalogue (3 catégories, 9 produits simples), grille de la carte, fiche produit | 1 et 3 | `it-2` | Oui |
+| 16/10/2026 | IT-1 | Mise en place des environnements de Dev et de Prod, thème enfant Storefront | Premier déploiement | `it-1` | Oui |

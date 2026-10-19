@@ -690,3 +690,166 @@ add_action( 'wp_footer', function () {
 	</script>
 	<?php
 }, 30 );
+
+
+/* =========================================================================
+ * 12. Composition et valeurs nutritionnelles (itération 4)
+ *     Champs SCF dans le back office, affichés sur la fiche avant le prix.
+ * ====================================================================== */
+
+/* Valeurs nutritionnelles pour 100 g : nom du champ => [libellé, unité] */
+function cz_nutrition_fields() {
+	return array(
+		'cz_nut_energie'   => array( 'Énergie', 'kcal' ),
+		'cz_nut_graisses'  => array( 'Matières grasses', 'g' ),
+		'cz_nut_satures'   => array( 'dont acides gras saturés', 'g' ),
+		'cz_nut_glucides'  => array( 'Glucides', 'g' ),
+		'cz_nut_sucres'    => array( 'dont sucres', 'g' ),
+		'cz_nut_proteines' => array( 'Protéines', 'g' ),
+		'cz_nut_sel'       => array( 'Sel', 'g' ),
+	);
+}
+
+/* Groupe de champs SCF */
+add_action( 'acf/init', function () {
+	if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+		return;
+	}
+
+	$fields = array(
+		array(
+			'key'   => 'field_cz_tab_composition',
+			'label' => 'Composition',
+			'type'  => 'tab',
+		),
+		array(
+			'key'     => 'field_cz_cacao',
+			'label'   => 'Pourcentage de cacao',
+			'name'    => 'cz_cacao',
+			'type'    => 'number',
+			'min'     => 0,
+			'max'     => 100,
+			'append'  => '%',
+			'wrapper' => array( 'width' => '33' ),
+		),
+		array(
+			'key'          => 'field_cz_poids',
+			'label'        => 'Poids net',
+			'name'         => 'cz_poids',
+			'type'         => 'text',
+			'instructions' => 'Ex. : 70 g',
+			'wrapper'      => array( 'width' => '33' ),
+		),
+		array(
+			'key'          => 'field_cz_origine',
+			'label'        => 'Origine du cacao',
+			'name'         => 'cz_origine',
+			'type'         => 'text',
+			'instructions' => 'Ex. : République dominicaine',
+			'wrapper'      => array( 'width' => '33' ),
+		),
+		array(
+			'key'   => 'field_cz_tab_nutrition',
+			'label' => 'Valeurs nutritionnelles (pour 100 g)',
+			'type'  => 'tab',
+		),
+	);
+
+	foreach ( cz_nutrition_fields() as $name => $info ) {
+		$fields[] = array(
+			'key'     => 'field_' . $name,
+			'label'   => $info[0],
+			'name'    => $name,
+			'type'    => 'number',
+			'min'     => 0,
+			'step'    => 0.01,
+			'append'  => $info[1],
+			'wrapper' => array( 'width' => '25' ),
+		);
+	}
+
+	acf_add_local_field_group(
+		array(
+			'key'        => 'group_cz_composition',
+			'title'      => 'Composition et valeurs nutritionnelles',
+			'fields'     => $fields,
+			'menu_order' => 1,
+			'location'   => array(
+				array(
+					array(
+						'param'    => 'post_type',
+						'operator' => '==',
+						'value'    => 'product',
+					),
+				),
+			),
+		)
+	);
+} );
+
+/* Nombre au format français : 45.5 -> « 45,5 » */
+function cz_format_number( $value ) {
+	$value = (float) str_replace( ',', '.', (string) $value );
+	$decimals = ( floor( $value ) == $value ) ? 0 : ( ( round( $value, 1 ) == $value ) ? 1 : 2 );
+	return number_format_i18n( $value, $decimals );
+}
+
+/* Affichage sur la fiche, entre la description courte (20) et le prix (25) */
+add_action( 'woocommerce_single_product_summary', function () {
+	global $product;
+	if ( ! $product ) {
+		return;
+	}
+	$id = $product->get_id();
+
+	/* Pastilles : cacao, poids, origine */
+	$chips  = array();
+	$cacao  = cz_product_field( 'cz_cacao', $id );
+	$poids  = cz_product_field( 'cz_poids', $id );
+	$origin = cz_product_field( 'cz_origine', $id );
+	if ( '' !== (string) $cacao ) {
+		$chips[] = array( 'Cacao', cz_format_number( $cacao ) . ' %' );
+	}
+	if ( $poids ) {
+		$chips[] = array( 'Poids net', $poids );
+	}
+	if ( $origin ) {
+		$chips[] = array( 'Origine', $origin );
+	}
+
+	/* Tableau nutritionnel */
+	$rows = array();
+	foreach ( cz_nutrition_fields() as $name => $info ) {
+		$value = cz_product_field( $name, $id );
+		if ( '' !== (string) $value ) {
+			$rows[] = array( $info[0], cz_format_number( $value ) . ' ' . $info[1], 0 === strpos( $info[0], 'dont' ) );
+		}
+	}
+
+	if ( ! $chips && ! $rows ) {
+		return;
+	}
+
+	echo '<div class="cz-specs">';
+
+	if ( $chips ) {
+		echo '<ul class="cz-specs-chips">';
+		foreach ( $chips as $chip ) {
+			echo '<li><span>' . esc_html( $chip[0] ) . '</span>' . esc_html( $chip[1] ) . '</li>';
+		}
+		echo '</ul>';
+	}
+
+	if ( $rows ) {
+		echo '<details class="cz-nutrition">';
+		echo '<summary>Valeurs nutritionnelles <span>pour 100 g</span></summary>';
+		echo '<table><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr' . ( $row[2] ? ' class="is-sub"' : '' ) . '><th scope="row">' . esc_html( $row[0] ) . '</th><td>' . esc_html( $row[1] ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '</details>';
+	}
+
+	echo '</div>';
+}, 22 );

@@ -763,6 +763,103 @@ ul.products li.product .cz-card-footer .price {
   }
 }
 
+/* Composition et valeurs nutritionnelles (itération 4) */
+.cz-specs {
+  margin: -24px 0 40px;
+}
+
+.cz-specs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 16px;
+  list-style: none;
+}
+
+.cz-specs-chips li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 16px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  font-size: 14px;
+}
+
+.cz-specs-chips li span {
+  font-size: 12px;
+  color: #5c5c5c;
+}
+
+.cz-nutrition {
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-beige);
+}
+
+.cz-nutrition summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  font-size: 15px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cz-nutrition summary::-webkit-details-marker {
+  display: none;
+}
+
+.cz-nutrition summary span {
+  margin-left: 8px;
+  margin-right: auto;
+  font-size: 13px;
+  color: #5c5c5c;
+}
+
+.cz-nutrition summary::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") no-repeat center;
+  transition: transform 0.2s;
+}
+
+.cz-nutrition[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.cz-nutrition summary:focus-visible {
+  outline: 2px solid var(--cz-noir);
+  outline-offset: 2px;
+}
+
+.cz-nutrition table {
+  width: calc(100% - 40px);
+  margin: 0 20px 16px;
+  border-collapse: collapse;
+  background: none;
+  font-size: 14px;
+}
+
+.cz-nutrition th,
+.cz-nutrition td {
+  padding: 8px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background: none !important;
+  font-weight: 400;
+}
+
+.cz-nutrition td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cz-nutrition tr.is-sub th {
+  padding-left: 16px;
+  color: #5c5c5c;
+}
+
 /* Pour compléter votre commande */
 .single-product div.product .related {
   grid-column: 1 / -1;
