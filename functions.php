@@ -122,7 +122,7 @@ add_filter( 'woocommerce_price_format', fn() => '%2$s%1$s' );
  * 4. En-tête : bandeau, logo, menu, Mon compte, Mon panier
  * ====================================================================== */
 add_action( 'storefront_before_header', function () {
-	if ( function_exists( 'is_cart' ) && ( is_cart() || is_checkout() ) ) {
+	if ( function_exists( 'is_cart' ) && ( is_cart() || ( is_checkout() && ! is_wc_endpoint_url( 'order-received' ) ) ) ) {
 		return;
 	}
 	echo '<div class="cz-topbar">Commander en ligne et récupérez sur place</div>';
@@ -153,7 +153,7 @@ function cz_header() {
 			<a class="cz-account" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">Mon compte</a>
 			<a class="cz-btn" href="<?php echo esc_url( wc_get_cart_url() ); ?>">
 				<span class="cz-cart-label">Mon panier<?php echo $count ? ' <span class="cz-cart-count">(' . (int) $count . ')</span>' : ''; ?></span>
-				<?php if ( function_exists( 'is_checkout' ) && is_checkout() ) : ?>
+				<?php if ( function_exists( 'is_checkout' ) && is_checkout() && ! is_wc_endpoint_url( 'order-received' ) ) : ?>
 					<span class="cz-back-label">Retour au panier</span>
 				<?php endif; ?>
 			</a>
@@ -397,9 +397,8 @@ add_action( 'woocommerce_before_single_product_summary', function () {
 
 /* Boutiques de retrait proposées */
 function cz_boutiques() {
-	return array(
-		'Manufacture Cluizel – 7 avenue Michel Cluizel, 27240 Mesnils-sur-Iton',
-	);
+	$address = function_exists( 'cz_pickup_settings' ) ? cz_pickup_settings()['address'] : '';
+	return array( 'Manufacture Cluizel – ' . ( $address ? $address : '7 avenue Michel Cluizel, 27240 Mesnils-sur-Iton' ) );
 }
 
 /* Listes par défaut selon la catégorie du produit */
@@ -871,7 +870,7 @@ add_action( 'wp', function () {
 	if ( ! function_exists( 'is_cart' ) ) {
 		return;
 	}
-	if ( is_cart() || ( is_checkout() && ! is_wc_endpoint_url( 'order-received' ) ) ) {
+	if ( is_cart() || is_checkout() ) {
 		remove_action( 'storefront_page', 'storefront_page_header', 10 );
 		remove_action( 'storefront_before_content', 'woocommerce_breadcrumb', 10 );
 	}
@@ -1062,27 +1061,26 @@ function cz_is_local_pickup_chosen() {
 	return false;
 }
 
-/* Carte « Instructions pour le retrait » */
+/* Carte « Instructions pour le retrait » (texte réglé dans WooCommerce › Retrait en boutique) */
 function cz_pickup_instructions() {
-	$hours = array(
-		'Lundi'    => '10h00 - 18h00',
-		'Mardi'    => '10h00 - 18h00',
-		'Mercredi' => '10h00 - 18h00',
-		'Jeudi'    => '10h00 - 18h00',
-		'Vendredi' => '10h00 - 18h00',
-		'Samedi'   => '10h00 - 18h00',
-		'Dimanche' => 'fermé',
-	);
+	$s = cz_pickup_settings();
 	echo '<section class="cz-card cz-pickup">';
-	echo '<h2 class="cz-card-title">Instructions pour le retrait</h2>';
-	echo '<p>Retrait en boutique : 7 Avenue Michel Cluizel, 27240 Mesnils-sur-Iton</p>';
-	echo '<p>Heures d’ouverture :</p>';
-	echo '<table class="cz-hours"><tbody>';
-	foreach ( $hours as $day => $time ) {
-		echo '<tr><th scope="row">' . esc_html( $day ) . '</th><td>' . esc_html( $time ) . '</td></tr>';
+	echo '<h2 class="cz-card-title">' . esc_html( $s['title'] ) . '</h2>';
+	if ( $s['address'] ) {
+		echo '<p>Retrait en boutique : ' . esc_html( $s['address'] ) . '</p>';
 	}
-	echo '</tbody></table>';
-	echo '<p>Présentez votre numéro de commande à l’accueil</p>';
+	$rows = cz_pickup_hours_rows( $s['hours'] );
+	if ( $rows ) {
+		echo '<p>Heures d’ouverture :</p>';
+		echo '<table class="cz-hours"><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr><th scope="row">' . esc_html( $row[0] ) . '</th><td>' . esc_html( $row[1] ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+	if ( $s['message'] ) {
+		echo '<p>' . nl2br( esc_html( $s['message'] ) ) . '</p>';
+	}
 	echo '</section>';
 }
 
@@ -1150,3 +1148,186 @@ add_filter( 'woocommerce_checkout_get_value', function ( $value, $input ) {
 	}
 	return $value;
 }, 20, 2 );
+
+/* =========================================================================
+ * 15. Instructions pour le retrait (itération 6)
+ *     Réglables dans le back office : WooCommerce › Retrait en boutique.
+ *     Affichées sur la page de validation, la page de confirmation
+ *     et dans les e-mails envoyés au client pour une commande en retrait.
+ * ====================================================================== */
+
+/* Valeurs par défaut */
+function cz_pickup_defaults() {
+	return array(
+		'title'   => 'Instructions pour le retrait',
+		'address' => '7 Avenue Michel Cluizel, 27240 Mesnils-sur-Iton',
+		'hours'   => "Lundi : 10h00 - 18h00\nMardi : 10h00 - 18h00\nMercredi : 10h00 - 18h00\nJeudi : 10h00 - 18h00\nVendredi : 10h00 - 18h00\nSamedi : 10h00 - 18h00\nDimanche : fermé",
+		'message' => 'Présentez votre numéro de commande à l’accueil',
+	);
+}
+
+/* Réglages enregistrés, complétés par les valeurs par défaut */
+function cz_pickup_settings() {
+	$saved = (array) get_option( 'cz_pickup_settings', array() );
+	$saved = array_filter( $saved, fn( $v ) => is_string( $v ) && '' !== trim( $v ) );
+	return wp_parse_args( $saved, cz_pickup_defaults() );
+}
+
+/* Horaires : une ligne par jour, « Jour : horaire » */
+function cz_pickup_hours_rows( $text ) {
+	$rows = array();
+	foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
+		$line = trim( $line );
+		if ( '' === $line ) {
+			continue;
+		}
+		$parts  = preg_split( '/\s*[:|]\s*/', $line, 2 );
+		$rows[] = array( $parts[0], isset( $parts[1] ) ? $parts[1] : '' );
+	}
+	return $rows;
+}
+
+/* Page de réglages : WooCommerce › Retrait en boutique */
+add_action( 'admin_menu', function () {
+	add_submenu_page(
+		'woocommerce',
+		'Instructions pour le retrait',
+		'Retrait en boutique',
+		'manage_woocommerce',
+		'cz-retrait',
+		'cz_pickup_settings_page'
+	);
+}, 60 );
+
+add_action( 'admin_init', function () {
+	register_setting(
+		'cz_pickup',
+		'cz_pickup_settings',
+		array(
+			'type'              => 'array',
+			'sanitize_callback' => function ( $input ) {
+				$input = (array) $input;
+				return array(
+					'title'   => sanitize_text_field( $input['title'] ?? '' ),
+					'address' => sanitize_text_field( $input['address'] ?? '' ),
+					'hours'   => sanitize_textarea_field( $input['hours'] ?? '' ),
+					'message' => sanitize_textarea_field( $input['message'] ?? '' ),
+				);
+			},
+		)
+	);
+} );
+
+/* Les gestionnaires de boutique peuvent enregistrer ces réglages */
+add_filter( 'option_page_capability_cz_pickup', fn() => 'manage_woocommerce' );
+
+function cz_pickup_settings_page() {
+	$s = cz_pickup_settings();
+	?>
+	<div class="wrap">
+		<h1>Instructions pour le retrait</h1>
+		<p>Ce texte s’affiche sur la page de validation de la commande, sur la page de confirmation et dans l’e-mail envoyé au client, lorsque le mode de réception choisi est le retrait en boutique.</p>
+
+		<form method="post" action="options.php">
+			<?php settings_fields( 'cz_pickup' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="cz-pickup-title">Titre</label></th>
+					<td><input type="text" id="cz-pickup-title" name="cz_pickup_settings[title]" value="<?php echo esc_attr( $s['title'] ); ?>" class="regular-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-pickup-address">Adresse de la boutique</label></th>
+					<td><input type="text" id="cz-pickup-address" name="cz_pickup_settings[address]" value="<?php echo esc_attr( $s['address'] ); ?>" class="large-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-pickup-hours">Heures d’ouverture</label></th>
+					<td>
+						<textarea id="cz-pickup-hours" name="cz_pickup_settings[hours]" rows="8" class="large-text" aria-describedby="cz-pickup-hours-help"><?php echo esc_textarea( $s['hours'] ); ?></textarea>
+						<p class="description" id="cz-pickup-hours-help">Une ligne par jour, au format « Jour : horaire ». Exemple : Lundi : 10h00 - 18h00</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-pickup-message">Message</label></th>
+					<td><textarea id="cz-pickup-message" name="cz_pickup_settings[message]" rows="3" class="large-text"><?php echo esc_textarea( $s['message'] ); ?></textarea></td>
+				</tr>
+			</table>
+			<?php submit_button( 'Enregistrer les instructions' ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/* La commande est-elle en retrait en boutique ? */
+function cz_order_is_pickup( $order ) {
+	if ( ! $order instanceof WC_Order ) {
+		return false;
+	}
+	foreach ( $order->get_shipping_methods() as $method ) {
+		if ( in_array( $method->get_method_id(), array( 'local_pickup', 'legacy_local_pickup', 'pickup_location' ), true ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/* Page de confirmation : gabarit woocommerce/checkout/thankyou.php
+   (le tableau de commande par défaut est remplacé par les cartes de la maquette) */
+add_action( 'init', function () {
+	remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
+}, 20 );
+
+/* Statut affiché dans « Informations de paiement » */
+function cz_order_payment_status( $order ) {
+	if ( 'cod' === $order->get_payment_method() ) {
+		return 'À régler en boutique';
+	}
+	if ( $order->is_paid() ) {
+		return 'Payée';
+	}
+	if ( 'bacs' === $order->get_payment_method() ) {
+		return 'En attente de votre virement';
+	}
+	return wc_get_order_status_name( $order->get_status() );
+}
+
+/* Options d'une ligne de commande : « Tablette de 70 g / Sans supplément / Coffret classique » */
+function cz_order_item_options( $item ) {
+	$parts = array();
+	foreach ( $item->get_formatted_meta_data( '_', true ) as $meta ) {
+		if ( 'Retrait' === $meta->key || 'Retrait' === wp_strip_all_tags( $meta->display_key ) ) {
+			continue;
+		}
+		$parts[] = trim( wp_strip_all_tags( $meta->display_value ) );
+	}
+	return implode( ' / ', array_filter( $parts ) );
+}
+
+/* E-mails envoyés au client : rappel des instructions */
+add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_admin, $plain_text ) {
+	if ( $sent_to_admin || ! cz_order_is_pickup( $order ) ) {
+		return;
+	}
+	$s    = cz_pickup_settings();
+	$rows = cz_pickup_hours_rows( $s['hours'] );
+
+	if ( $plain_text ) {
+		echo "\n" . esc_html( strtoupper( $s['title'] ) ) . "\n\n";
+		echo 'Retrait en boutique : ' . esc_html( $s['address'] ) . "\n\n";
+		foreach ( $rows as $row ) {
+			echo esc_html( $row[0] . ' : ' . $row[1] ) . "\n";
+		}
+		echo "\n" . esc_html( $s['message'] ) . "\n\n";
+		return;
+	}
+
+	echo '<h2>' . esc_html( $s['title'] ) . '</h2>';
+	echo '<p>Retrait en boutique : ' . esc_html( $s['address'] ) . '</p>';
+	if ( $rows ) {
+		echo '<table cellspacing="0" cellpadding="4" style="margin-bottom:16px;">';
+		foreach ( $rows as $row ) {
+			echo '<tr><td style="padding:2px 24px 2px 0;">' . esc_html( $row[0] ) . '</td><td style="padding:2px 0;">' . esc_html( $row[1] ) . '</td></tr>';
+		}
+		echo '</table>';
+	}
+	echo '<p>' . nl2br( esc_html( $s['message'] ) ) . '</p>';
+}, 10, 3 );

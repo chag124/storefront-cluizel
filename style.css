@@ -1890,3 +1890,271 @@ body.woocommerce-cart .cart_totals table.shop_table td::before {
     background: var(--cz-blanc);
   }
 }
+
+/* ==========================================================================
+   9. Commande reçue (maquette « Merci, … votre commande est confirmée »)
+   ========================================================================== */
+.cz-thanks-head {
+  margin: 48px 0 48px;
+}
+
+.cz-thanks-title {
+  margin: 0 0 20px;
+  font-size: clamp(32px, 4.4vw, 56px);
+  line-height: 1.15;
+}
+
+.cz-thanks-head p {
+  max-width: 640px;
+  margin: 0;
+  font-family: var(--cz-font-titre);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.cz-thanks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 460px;
+  align-items: start;
+  gap: 50px;
+}
+
+@media (max-width: 991px) {
+  .cz-thanks {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.cz-thanks .cz-card {
+  margin-bottom: 44px;
+}
+
+/* Numéro, date, e-mail */
+.cz-order-meta {
+  padding: 32px 20px !important;
+}
+
+.cz-order-meta dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.cz-order-meta dt,
+.cz-order-meta dd {
+  margin: 0;
+  font-family: var(--cz-font-titre);
+  font-size: 15px;
+}
+
+.cz-order-meta dt {
+  margin-bottom: 8px;
+  font-weight: 400;
+}
+
+.cz-order-meta dd {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .cz-order-meta dl {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .cz-order-meta dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .cz-order-meta dt {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .cz-order-meta dd {
+    font-size: 13px;
+    text-align: right;
+  }
+}
+
+/* Informations de paiement */
+.cz-order-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.cz-order-rows .cz-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.cz-order-rows dt,
+.cz-order-rows dd {
+  margin: 0;
+  font-weight: 400;
+}
+
+.cz-order-rows dd {
+  text-align: right;
+}
+
+.cz-order-rows .cz-row-gap {
+  margin-bottom: 14px;
+}
+
+.cz-order-rows .cz-row-total {
+  font-size: 15px;
+}
+
+.cz-gateway-details {
+  margin-top: 24px;
+  font-size: 13px;
+}
+
+.cz-gateway-details h2,
+.cz-gateway-details h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.cz-gateway-details ul {
+  margin: 0;
+  list-style: none;
+}
+
+/* Ma commande */
+.cz-order-items .cz-card-title {
+  padding: 0 20px;
+}
+
+.cz-order-items ul {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0;
+  list-style: none;
+}
+
+.cz-order-items li {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 120px;
+  grid-template-areas: "thumb text price";
+  align-items: center;
+  gap: 24px 60px;
+  padding: 20px;
+  border-radius: 30px;
+  background: var(--cz-blanc);
+}
+
+.cz-order-thumb {
+  display: flex;
+  grid-area: thumb;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 16px;
+  background: var(--cz-beige-clair);
+}
+
+.cz-order-thumb img {
+  width: auto;
+  max-width: 70%;
+  max-height: 80%;
+  margin: 0;
+}
+
+.cz-order-text {
+  grid-area: text;
+}
+
+.cz-order-name {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+
+.cz-order-options {
+  display: block;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.cz-order-price {
+  grid-area: price;
+  font-size: 15px;
+}
+
+@media (max-width: 767px) {
+  .cz-order-items .cz-card-title {
+    padding: 0;
+  }
+
+  .cz-order-items li {
+    grid-template-columns: 66px minmax(0, 1fr);
+    grid-template-areas:
+      "thumb text"
+      "thumb price";
+    gap: 6px 22px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .cz-order-thumb {
+    width: 66px;
+    height: 66px;
+    border-radius: var(--cz-radius-sm);
+    background: var(--cz-blanc);
+  }
+
+  .cz-order-name {
+    margin-bottom: 2px;
+  }
+
+  .cz-order-price {
+    align-self: start;
+    margin-top: 8px;
+  }
+}
+
+/* Colonne de droite */
+.cz-thanks-side .cz-card {
+  margin-bottom: 16px;
+}
+
+.cz-thanks-side address {
+  font-style: normal;
+  font-size: 15px;
+}
+
+.cz-btn-block {
+  display: block;
+  width: 100%;
+  height: 52px;
+  padding: 0 24px;
+  font-size: 15px;
+  line-height: 52px;
+  text-align: center;
+}
+
+.cz-thanks-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.cz-thanks-link {
+  color: var(--cz-noir);
+  text-decoration: underline;
+}
