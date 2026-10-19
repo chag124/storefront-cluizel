@@ -1811,3 +1811,82 @@ ul.products li.product .cz-card-footer .price {
 #mailpoet_woocommerce_checkout_optin_field {
   display: none !important;
 }
+
+/* Case MailPoet : quel que soit son emplacement dans « Mes coordonnées » */
+.cz-coords .woocommerce-billing-fields > *:not(h3):not(.woocommerce-billing-fields__field-wrapper),
+.cz-coords [id*="mailpoet"],
+.cz-coords [class*="mailpoet"],
+.cz-coords .form-row:has(input[id*="mailpoet"]) {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Corrections mobile du panier
+   ========================================================================== */
+
+/* Ligne d'article : la quantité ne chevauche plus le prix */
+@media (max-width: 599px) {
+  .cz-cart-item {
+    grid-template-columns: 84px 38px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "thumb info info info"
+      "qty qty price remove";
+  }
+
+  .cz-item-price {
+    padding-left: 8px;
+  }
+}
+
+/* Récapitulatif : WooCommerce transforme les tableaux en « cartes » sur mobile
+   (libellés ajoutés devant chaque valeur). On garde notre mise en page partout. */
+body.woocommerce-cart .cart_totals table.shop_table tr {
+  display: flex !important;
+}
+
+body.woocommerce-cart .cart_totals table.shop_table tr.woocommerce-shipping-totals {
+  flex-direction: column !important;
+}
+
+body.woocommerce-cart .cart_totals table.shop_table th,
+body.woocommerce-cart .cart_totals table.shop_table td {
+  display: block !important;
+}
+
+body.woocommerce-cart .cart_totals table.shop_table td {
+  text-align: right !important;
+}
+
+body.woocommerce-cart .cart_totals table.shop_table tr.woocommerce-shipping-totals td {
+  text-align: left !important;
+}
+
+body.woocommerce-cart .cart_totals table.shop_table td::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* « Ma commande » : pas de fond blanc Storefront, le beige de la carte apparaît */
+.woocommerce-checkout #order_review,
+.woocommerce-checkout .woocommerce-checkout-review-order,
+.woocommerce-checkout .woocommerce-checkout-review-order-table,
+.woocommerce-checkout .cz-review,
+.woocommerce-checkout .cz-place-order {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Sur mobile, vignettes dans un carré blanc arrondi comme sur la maquette */
+@media (max-width: 991px) {
+  .cz-review-items li {
+    grid-template-columns: 70px minmax(0, 1fr) auto;
+  }
+
+  .cz-review-thumb {
+    width: 70px;
+    height: 70px;
+    padding: 8px;
+    border-radius: var(--cz-radius-sm);
+    background: var(--cz-blanc);
+  }
+}
