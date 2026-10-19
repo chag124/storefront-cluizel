@@ -105,6 +105,8 @@ add_action( 'init', function () {
 	remove_action( 'woocommerce_after_single_product_summary', 'storefront_single_product_pagination', 30 );
 	remove_action( 'storefront_after_footer', 'storefront_sticky_single_add_to_cart', 999 );
 	remove_action( 'woocommerce_single_product_summary', 'storefront_edit_post_link', 60 );
+	remove_action( 'storefront_page', 'storefront_edit_post_link', 30 );
+	remove_action( 'storefront_single_post_bottom', 'storefront_edit_post_link', 5 );
 }, 20 );
 
 /* Galerie produit sans loupe ni zoom (image fixe comme sur la maquette) */
@@ -150,7 +152,10 @@ function cz_header() {
 		<div class="cz-header-actions">
 			<a class="cz-account" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">Mon compte</a>
 			<a class="cz-btn" href="<?php echo esc_url( wc_get_cart_url() ); ?>">
-				Mon panier<?php echo $count ? ' <span class="cz-cart-count">(' . (int) $count . ')</span>' : ''; ?>
+				<span class="cz-cart-label">Mon panier<?php echo $count ? ' <span class="cz-cart-count">(' . (int) $count . ')</span>' : ''; ?></span>
+				<?php if ( function_exists( 'is_checkout' ) && is_checkout() ) : ?>
+					<span class="cz-back-label">Retour au panier</span>
+				<?php endif; ?>
 			</a>
 		</div>
 	</div>
@@ -516,8 +521,9 @@ add_filter( 'woocommerce_add_to_cart_validation', function ( $passed, $product_i
 		return $passed;
 	}
 	$boutique = sanitize_text_field( wp_unslash( $_POST['cz_boutique'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
-	if ( ! in_array( $boutique, cz_boutiques(), true ) ) {
-		wc_add_notice( 'Choisissez votre boutique de retrait avant d\'ajouter le produit au panier.', 'error' );
+	/* Itération 5 : le mode de réception se choisit dans le panier, la boutique devient facultative */
+	if ( '' !== $boutique && ! in_array( $boutique, cz_boutiques(), true ) ) {
+		wc_add_notice( 'Cette boutique de retrait n\'est pas disponible.', 'error' );
 		return false;
 	}
 	return $passed;
@@ -853,3 +859,294 @@ add_action( 'woocommerce_single_product_summary', function () {
 
 	echo '</div>';
 }, 22 );
+
+/* =========================================================================
+ * 13. Panier (itération 5)
+ *     Gabarit : woocommerce/cart/cart.php (liste des articles + suggestions)
+ *     Récapitulatif : gabarit WooCommerce d'origine, adapté par filtres et CSS
+ * ====================================================================== */
+
+/* Pas de fil d'Ariane ni de titre Storefront sur le panier : le gabarit affiche « Étape 1 sur 2 » */
+add_action( 'wp', function () {
+	if ( ! function_exists( 'is_cart' ) ) {
+		return;
+	}
+	if ( is_cart() || ( is_checkout() && ! is_wc_endpoint_url( 'order-received' ) ) ) {
+		remove_action( 'storefront_page', 'storefront_page_header', 10 );
+		remove_action( 'storefront_before_content', 'woocommerce_breadcrumb', 10 );
+	}
+} );
+
+/* Les suggestions par défaut sont remplacées par « Vous aimerez aussi » */
+add_action( 'init', function () {
+	remove_action( 'woocommerce_cart_collaterals', 'woocommerce_cross_sell_display' );
+}, 20 );
+
+/* En-tête du panier (aussi quand il est vide) */
+function cz_cart_head() {
+	echo '<div class="cz-cart-head">';
+	echo '<p class="cz-steps">Étape 1 sur 2 <span aria-hidden="true">·</span> Panier</p>';
+	echo '<h1 class="cz-cart-title">Mon panier</h1>';
+	echo '</div>';
+}
+add_action( 'woocommerce_cart_is_empty', 'cz_cart_head', 5 );
+
+/* Options d'un article : « Tablette de 70 g / Sans supplément / Étui cadeau » */
+function cz_cart_item_options( $cart_item ) {
+	$parts = array();
+	if ( ! empty( $cart_item['variation'] ) ) {
+		foreach ( $cart_item['variation'] as $attribute => $value ) {
+			$taxonomy = str_replace( 'attribute_', '', $attribute );
+			if ( taxonomy_exists( $taxonomy ) ) {
+				$term  = get_term_by( 'slug', $value, $taxonomy );
+				$value = $term ? $term->name : $value;
+			}
+			if ( '' !== $value ) {
+				$parts[] = $value;
+			}
+		}
+	}
+	if ( ! empty( $cart_item['cz_options'] ) ) {
+		foreach ( $cart_item['cz_options'] as $label => $value ) {
+			if ( 'Retrait' !== $label ) {
+				$parts[] = $value;
+			}
+		}
+	}
+	return implode( ' / ', $parts );
+}
+
+/* « Vous aimerez aussi » : ventes croisées, complétées par d'autres produits */
+function cz_cart_suggestions() {
+	if ( ! WC()->cart || WC()->cart->is_empty() ) {
+		return;
+	}
+	$in_cart = wp_list_pluck( WC()->cart->get_cart(), 'product_id' );
+	$ids     = array_values( array_diff( WC()->cart->get_cross_sells(), $in_cart ) );
+	if ( count( $ids ) < 2 ) {
+		$extra = wc_get_products(
+			array(
+				'status'     => 'publish',
+				'visibility' => 'catalog',
+				'limit'      => 2 - count( $ids ),
+				'exclude'    => array_merge( $ids, $in_cart ),
+				'orderby'    => 'rand',
+				'return'     => 'ids',
+			)
+		);
+		$ids = array_merge( $ids, $extra );
+	}
+	$ids = array_slice( $ids, 0, 2 );
+	if ( ! $ids ) {
+		return;
+	}
+	echo '<section class="cz-suggestions" aria-labelledby="cz-suggestions-title">';
+	echo '<h2 id="cz-suggestions-title" class="cz-suggestions-title">Vous aimerez aussi</h2><ul>';
+	foreach ( $ids as $id ) {
+		$p = wc_get_product( $id );
+		if ( ! $p ) {
+			continue;
+		}
+		echo '<li><a href="' . esc_url( $p->get_permalink() ) . '">';
+		echo '<span class="cz-suggestion-img">' . $p->get_image( 'woocommerce_thumbnail' ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		echo '<span class="cz-suggestion-text"><span class="cz-suggestion-name">' . esc_html( $p->get_name() ) . '</span>';
+		echo '<span class="cz-suggestion-price">' . wp_kses_post( $p->get_price_html() ) . '</span></span>';
+		echo '</a></li>';
+	}
+	echo '</ul></section>';
+}
+
+/* Textes du récapitulatif */
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	if ( 'woocommerce' !== $domain ) {
+		return $translation;
+	}
+	if ( 'Cart totals' === $text ) {
+		return 'Récapitulatif';
+	}
+	if ( 'Proceed to checkout' === $text ) {
+		return 'Passer commande';
+	}
+	return $translation;
+}, 20, 3 );
+
+add_filter( 'woocommerce_shipping_package_name', fn() => 'Mode de réception' );
+
+/* Mode de réception en pilule : « Retrait en boutique … Gratuit » */
+add_filter( 'woocommerce_cart_shipping_method_full_label', function ( $label, $method ) {
+	$cost = (float) $method->get_cost();
+	if ( WC()->cart && WC()->cart->display_prices_including_tax() ) {
+		$cost += array_sum( (array) $method->get_taxes() );
+	}
+	$price = $cost > 0 ? wc_price( $cost ) : 'Gratuit';
+	return '<span class="cz-ship-name">' . esc_html( $method->get_label() ) . '</span><span class="cz-ship-price">' . $price . '</span>';
+}, 10, 2 );
+
+/* Ligne « Retrait en boutique 0,00€ » au-dessus du total */
+add_action( 'woocommerce_cart_totals_before_order_total', function () {
+	if ( ! WC()->cart->needs_shipping() ) {
+		return;
+	}
+	$chosen   = WC()->session ? (array) WC()->session->get( 'chosen_shipping_methods' ) : array();
+	$packages = WC()->shipping()->get_packages();
+	$rate     = ( $chosen && isset( $packages[0]['rates'][ $chosen[0] ] ) ) ? $packages[0]['rates'][ $chosen[0] ] : null;
+	if ( ! $rate ) {
+		return;
+	}
+	$cost = (float) WC()->cart->get_shipping_total();
+	if ( WC()->cart->display_prices_including_tax() ) {
+		$cost += (float) WC()->cart->get_shipping_tax();
+	}
+	echo '<tr class="cz-shipping-line"><th>' . esc_html( $rate->get_label() ) . '</th><td>' . wp_kses_post( wc_price( $cost ) ) . '</td></tr>';
+} );
+
+/* Lien « Continuer mes achats » sous le bouton */
+add_action( 'woocommerce_proceed_to_checkout', function () {
+	echo '<a class="cz-continue" href="' . esc_url( wc_get_page_permalink( 'shop' ) ) . '">Continuer mes achats</a>';
+}, 30 );
+
+/* Mise à jour automatique du panier quand la quantité change */
+add_action( 'wp_footer', function () {
+	if ( ! function_exists( 'is_cart' ) || ! is_cart() ) {
+		return;
+	}
+	?>
+	<script>
+	(function ($) {
+		if (!$) return;
+		var timer;
+		$(document.body).on('change', '.woocommerce-cart-form input.qty', function () {
+			clearTimeout(timer);
+			timer = setTimeout(function () {
+				$('.woocommerce-cart-form [name="update_cart"]').prop('disabled', false).trigger('click');
+			}, 500);
+		});
+	})(window.jQuery);
+	</script>
+	<?php
+}, 30 );
+
+/* =========================================================================
+ * 14. Validation de la commande (maquette « Finaliser ma commande »)
+ *     Gabarits : woocommerce/checkout/form-checkout.php, review-order.php,
+ *     payment.php et payment-method.php
+ * ====================================================================== */
+
+/* Pas de code promo, pas de rappel de connexion, paiement à gauche */
+add_action( 'init', function () {
+	remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_coupon_form', 10 );
+	remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_login_form', 10 );
+	remove_action( 'woocommerce_checkout_order_review', 'woocommerce_checkout_payment', 20 );
+	remove_action( 'woocommerce_checkout_terms_and_conditions', 'wc_checkout_privacy_policy_text', 20 );
+}, 20 );
+
+/* Récapitulatif fixe de Storefront désactivé (la mise en page est différente) */
+add_filter( 'storefront_sticky_order_review', '__return_false' );
+
+/* En-tête de la page */
+function cz_checkout_head() {
+	echo '<div class="cz-cart-head">';
+	echo '<p class="cz-steps">Étape 2 sur 2 <span aria-hidden="true">·</span> Validation</p>';
+	echo '<h1 class="cz-cart-title">Finaliser ma commande</h1>';
+	echo '</div>';
+}
+
+/* Le mode de réception choisi est-il le retrait en boutique ? */
+function cz_is_local_pickup_chosen() {
+	$chosen = ( WC()->session ) ? (array) WC()->session->get( 'chosen_shipping_methods' ) : array();
+	foreach ( $chosen as $id ) {
+		if ( 0 === strpos( (string) $id, 'local_pickup' ) || 0 === strpos( (string) $id, 'pickup_location' ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/* Carte « Instructions pour le retrait » */
+function cz_pickup_instructions() {
+	$hours = array(
+		'Lundi'    => '10h00 - 18h00',
+		'Mardi'    => '10h00 - 18h00',
+		'Mercredi' => '10h00 - 18h00',
+		'Jeudi'    => '10h00 - 18h00',
+		'Vendredi' => '10h00 - 18h00',
+		'Samedi'   => '10h00 - 18h00',
+		'Dimanche' => 'fermé',
+	);
+	echo '<section class="cz-card cz-pickup">';
+	echo '<h2 class="cz-card-title">Instructions pour le retrait</h2>';
+	echo '<p>Retrait en boutique : 7 Avenue Michel Cluizel, 27240 Mesnils-sur-Iton</p>';
+	echo '<p>Heures d’ouverture :</p>';
+	echo '<table class="cz-hours"><tbody>';
+	foreach ( $hours as $day => $time ) {
+		echo '<tr><th scope="row">' . esc_html( $day ) . '</th><td>' . esc_html( $time ) . '</td></tr>';
+	}
+	echo '</tbody></table>';
+	echo '<p>Présentez votre numéro de commande à l’accueil</p>';
+	echo '</section>';
+}
+
+/* Coordonnées : Prénom, Nom, E-mail, Téléphone (l'adresse n'est demandée que pour la livraison) */
+add_filter( 'woocommerce_checkout_fields', function ( $fields ) {
+	foreach ( array( 'billing_company', 'billing_country', 'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state', 'billing_postcode' ) as $key ) {
+		unset( $fields['billing'][ $key ] );
+	}
+	unset( $fields['shipping']['shipping_company'] );
+
+	$layout = array(
+		'billing_first_name' => array( 'Prénom', 'form-row-first', 10, true ),
+		'billing_last_name'  => array( 'Nom', 'form-row-last', 20, true ),
+		'billing_email'      => array( 'E-mail', 'form-row-first', 30, true ),
+		'billing_phone'      => array( 'Téléphone', 'form-row-last', 40, true ),
+	);
+	foreach ( $layout as $key => $conf ) {
+		if ( ! isset( $fields['billing'][ $key ] ) ) {
+			continue;
+		}
+		$fields['billing'][ $key ]['label']       = $conf[0];
+		$fields['billing'][ $key ]['class']       = array( $conf[1] );
+		$fields['billing'][ $key ]['priority']    = $conf[2];
+		$fields['billing'][ $key ]['required']    = $conf[3];
+		$fields['billing'][ $key ]['placeholder'] = '';
+	}
+	return $fields;
+}, 20 );
+
+/* Pas de notes de commande ; l'adresse de livraison est toujours celle saisie dans sa carte */
+add_filter( 'woocommerce_enable_order_notes_field', '__return_false' );
+add_filter( 'woocommerce_ship_to_different_address_checked', '__return_true' );
+
+/* Case CGV : « J’accepte les conditions générales de vente » */
+add_filter( 'woocommerce_get_terms_and_conditions_checkbox_text', fn() => 'J’accepte les [terms]' );
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	if ( 'woocommerce' === $domain && 'terms and conditions' === $text ) {
+		return 'conditions générales de vente';
+	}
+	return $translation;
+}, 20, 3 );
+
+/* Bouton « Passer commande » sous le récapitulatif (colonne de droite) */
+add_filter( 'woocommerce_order_button_text', fn() => 'Passer commande' );
+
+add_action( 'woocommerce_checkout_order_review', function () {
+	$text = apply_filters( 'woocommerce_order_button_text', 'Passer commande' );
+	echo '<div class="cz-place-order">';
+	echo apply_filters( // phpcs:ignore WordPress.Security.EscapeOutput
+		'woocommerce_order_button_html',
+		'<button type="submit" class="button alt" name="woocommerce_checkout_place_order" id="place_order" value="' . esc_attr( $text ) . '" data-value="' . esc_attr( $text ) . '">' . esc_html( $text ) . '</button>'
+	);
+	echo '</div>';
+}, 30 );
+
+/* Retrait en boutique : pas d'adresse de livraison à saisir */
+add_filter( 'woocommerce_cart_needs_shipping_address', function ( $needs ) {
+	return $needs && ! cz_is_local_pickup_chosen();
+} );
+
+/* Champs de coordonnées vides, même pour un compte connecté */
+add_filter( 'woocommerce_checkout_get_value', function ( $value, $input ) {
+	if ( 'billing_email' === $input ) {
+		return '';
+	}
+	return $value;
+}, 20, 2 );
