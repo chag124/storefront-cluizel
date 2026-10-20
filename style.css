@@ -3269,3 +3269,48 @@ body.woocommerce-cart .cart_totals table.shop_table td::before {
     padding-left: 0;
   }
 }
+
+/* Messages WooCommerce sur tout le site (panier, commande, compte) aux couleurs de la charte */
+.woocommerce-message,
+.woocommerce-info,
+.woocommerce-error,
+.woocommerce-noreviews,
+p.no-comments {
+  margin: 0 0 32px;
+  padding: 18px 24px !important;
+  border: 0 !important;
+  border-left: 4px solid var(--cz-noir) !important;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-beige) !important;
+  color: var(--cz-noir) !important;
+  font-size: 15px;
+  list-style: none;
+}
+
+.woocommerce-error {
+  border-left-color: #b3261e !important;
+}
+
+.woocommerce-message::before,
+.woocommerce-info::before,
+.woocommerce-error::before {
+  display: none !important;
+}
+
+.woocommerce-message a,
+.woocommerce-info a,
+.woocommerce-error a {
+  color: var(--cz-noir) !important;
+  text-decoration: underline;
+}
+
+.woocommerce-message .button,
+.woocommerce-info .button {
+  float: right;
+  margin-left: 16px;
+  padding: 6px 18px;
+  border-radius: var(--cz-pill);
+  background: var(--cz-noir);
+  color: var(--cz-blanc) !important;
+  text-decoration: none;
+}
