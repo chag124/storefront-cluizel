@@ -1768,7 +1768,7 @@ function cz_email_pickup_card( $order, $plain_text = false ) {
 	echo '<h2>' . esc_html( $s['title'] ) . '</h2>';
 	echo '<p><strong>Retrait en boutique :</strong> ' . esc_html( $s['address'] ) . '</p>';
 	if ( $rows ) {
-		echo '<p><strong>Horaires :</strong></p><table class="cz-email-hours" border="0" cellpadding="0" cellspacing="0" role="presentation">';
+		echo '<p><strong>Heures d’ouverture :</strong></p><table class="cz-email-hours" border="0" cellpadding="0" cellspacing="0" role="presentation">';
 		foreach ( $rows as $row ) {
 			echo '<tr><td>' . esc_html( $row[0] ) . '</td><td>' . esc_html( $row[1] ) . '</td></tr>';
 		}
@@ -2006,3 +2006,55 @@ add_action( 'woocommerce_email_before_order_table', function ( $order, $sent_to_
 	}
 	cz_bacs_alt_instructions( $order, $plain_text );
 }, 20, 3 );
+
+/* --- Tableau de la commande dans les e-mails (maquette v8.0) --- */
+
+/* On repère quand WooCommerce affiche le tableau d'un e-mail */
+add_action( 'woocommerce_email_before_order_table', function () {
+	$GLOBALS['cz_in_email_table'] = true;
+}, 1 );
+add_action( 'woocommerce_email_after_order_table', function () {
+	$GLOBALS['cz_in_email_table'] = false;
+}, 99 );
+
+function cz_in_email_table() {
+	return ! empty( $GLOBALS['cz_in_email_table'] );
+}
+
+/* Vignettes plus grandes (64 px) */
+add_filter( 'woocommerce_email_order_items_args', function ( $args ) {
+	$args['image_size'] = array( 64, 64 );
+	return $args;
+} );
+
+/* Options sur une ligne : « Tablette de 70 g / Sans supplément / Étui cadeau » */
+add_filter( 'woocommerce_display_item_meta', function ( $html, $item ) {
+	if ( ! cz_in_email_table() || ! $item instanceof WC_Order_Item_Product ) {
+		return $html;
+	}
+	$options = cz_order_item_options( $item );
+	return $options ? '<span class="cz-email-item-options">' . esc_html( $options ) . '</span>' : '';
+}, 10, 2 );
+
+/* Totaux : Sous-total, Retrait en boutique 0,00 €, Total, puis Mode de paiement */
+add_filter( 'woocommerce_get_order_item_totals', function ( $totals, $order ) {
+	if ( ! cz_in_email_table() ) {
+		return $totals;
+	}
+	if ( isset( $totals['shipping'] ) && $order->get_shipping_method() ) {
+		$cost = (float) $order->get_shipping_total();
+		if ( 'incl' === get_option( 'woocommerce_tax_display_cart' ) ) {
+			$cost += (float) $order->get_shipping_tax();
+		}
+		$totals['shipping']['label'] = $order->get_shipping_method();
+		$totals['shipping']['value'] = wc_price( $cost, array( 'currency' => $order->get_currency() ) );
+		unset( $totals['shipping']['meta'] );
+	}
+	if ( isset( $totals['payment_method'] ) ) {
+		$payment = $totals['payment_method'];
+		unset( $totals['payment_method'] );
+		$payment['label']          = 'Mode de paiement';
+		$totals['payment_method'] = $payment;
+	}
+	return $totals;
+}, 20, 2 );

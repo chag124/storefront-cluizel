@@ -42,7 +42,7 @@ body,
 #template_container {
 	background-color: #ffffff !important;
 	border: 0 !important;
-	border-radius: 20px !important;
+	border-radius: 30px 30px 0 0 !important;
 	box-shadow: none !important;
 	overflow: hidden;
 }
@@ -89,14 +89,14 @@ body,
 }
 
 #header_wrapper {
-	padding: 36px 40px 0 !important;
+	padding: 40px 24px 0 !important;
 }
 
 #template_header h1,
 #template_header h1 a {
 	color: #000000 !important;
 	font-family: <?php echo $cz_titre; // phpcs:ignore WordPress.Security.EscapeOutput ?> !important;
-	font-size: 28px !important;
+	font-size: 30px !important;
 	font-weight: 400 !important;
 	line-height: 1.25 !important;
 	margin: 0 !important;
@@ -111,13 +111,13 @@ body,
 
 #body_content > table > tbody > tr > td,
 #body_content > table > tr > td {
-	padding: 24px 40px 40px !important;
+	padding: 24px 24px 40px !important;
 }
 
 #body_content_inner {
 	color: #000000 !important;
 	font-family: <?php echo $cz_texte; // phpcs:ignore WordPress.Security.EscapeOutput ?> !important;
-	font-size: 15px !important;
+	font-size: 13px !important;
 	line-height: 1.55 !important;
 }
 
@@ -138,7 +138,7 @@ body,
 }
 
 #body_content p {
-	margin: 0 0 14px;
+	margin: 0 0 8px;
 }
 
 /* Tableau de la commande */
@@ -170,12 +170,103 @@ body,
 
 /* Adresses */
 .address {
-	background-color: #f8f5f0 !important;
+	background-color: #f1ede8 !important;
 	border: 0 !important;
-	border-radius: 12px !important;
+	border-radius: 20px !important;
 	color: #000000 !important;
+	font-size: 12px !important;
 	font-style: normal !important;
-	padding: 16px !important;
+	line-height: 1.35 !important;
+	margin-top: 16px !important;
+	padding: 20px !important;
+}
+
+.address-title {
+	color: #000000 !important;
+	display: block;
+	font-family: <?php echo $cz_titre; // phpcs:ignore WordPress.Security.EscapeOutput ?> !important;
+	font-size: 15px !important;
+	font-weight: 600 !important;
+	margin-top: 8px;
+}
+
+/* Résumé de la commande */
+#body_content_inner h2.email-order-detail-heading,
+#body_content_inner h2.email-order-detail-heading span {
+	color: #000000 !important;
+	font-family: <?php echo $cz_titre; // phpcs:ignore WordPress.Security.EscapeOutput ?> !important;
+	font-size: 15px !important;
+	font-weight: 400 !important;
+	line-height: 2 !important;
+	margin: 40px 0 24px !important;
+}
+
+#body_content_inner h2.email-order-detail-heading span {
+	margin: 0 !important;
+}
+
+#body_content_inner table.email-order-details thead th {
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25) !important;
+	font-size: 11px !important;
+	font-weight: 600 !important;
+	padding: 0 12px 16px !important;
+}
+
+#body_content_inner table.email-order-details tbody td {
+	border: 0 !important;
+	font-size: 13px !important;
+	padding: 36px 12px !important;
+}
+
+#body_content_inner table.email-order-details tbody tr:last-child td {
+	border-bottom: 1px solid rgba(0, 0, 0, 0.25) !important;
+}
+
+#body_content_inner .email-order-item-thumbnail img {
+	border-radius: 0;
+	height: auto;
+	width: 64px;
+}
+
+#body_content_inner .wc-product-name {
+	font-size: 13px !important;
+	margin: 0 0 10px !important;
+}
+
+#body_content_inner .cz-email-item-options,
+#body_content_inner .email-order-item-meta {
+	color: #000000 !important;
+	font-size: 11px !important;
+	line-height: 1.35 !important;
+}
+
+/* Totaux en retrait, petits, Total plus grand */
+#body_content_inner table.email-order-details .order-totals th,
+#body_content_inner table.email-order-details .order-totals td {
+	border: 0 !important;
+	font-size: 11px !important;
+	font-weight: 400 !important;
+	padding: 6px 25px !important;
+}
+
+#body_content_inner table.email-order-details .order-totals-total th,
+#body_content_inner table.email-order-details .order-totals-total td {
+	font-size: 14px !important;
+	font-weight: 400 !important;
+	padding-bottom: 20px !important;
+}
+
+#body_content_inner table.email-order-details .order-totals-last th,
+#body_content_inner table.email-order-details .order-totals-last td {
+	border-bottom: 0 !important;
+}
+
+/* Contenu additionnel (« Encore merci… ») */
+#body_content table td td.email-additional-content,
+.email-additional-content p {
+	font-size: 12px !important;
+	padding-top: 8px !important;
+	text-align: left !important;
 }
 
 /* Blocs de la charte : carte beige, frise, bouton */
@@ -237,8 +328,8 @@ body,
 	border-radius: 999px !important;
 	color: #ffffff !important;
 	display: inline-block;
-	font-size: 15px !important;
-	padding: 12px 30px !important;
+	font-size: 12px !important;
+	padding: 12px 32px !important;
 	text-decoration: none !important;
 }
 
@@ -253,18 +344,22 @@ body,
 
 #cz_footer {
 	background-color: #000000;
-	border-radius: 20px;
+	border-radius: 0 0 30px 30px !important;
 	color: #ffffff;
 	font-family: <?php echo $cz_texte; // phpcs:ignore WordPress.Security.EscapeOutput ?>;
 	font-size: 13px;
 	line-height: 1.6;
-	padding: 32px 24px !important;
+	padding: 40px 24px !important;
 	text-align: center;
 }
 
 #cz_footer .cz-logo-text {
 	color: #ffffff !important;
-	font-size: 18px;
+	font-size: 20px;
+}
+
+#cz_footer #credit {
+	padding-top: 20px !important;
 }
 
 #cz_footer a {
@@ -288,13 +383,25 @@ body,
 		padding: 0 !important;
 	}
 
-	#template_container,
+	#template_container {
+		border-radius: 0 !important;
+	}
+
 	#cz_footer {
 		border-radius: 0 !important;
 	}
 
 	#header_wrapper {
 		padding: 28px 20px 0 !important;
+	}
+
+	#body_content_inner table.email-order-details tbody td {
+		padding: 20px 6px !important;
+	}
+
+	#body_content_inner table.email-order-details .order-totals th,
+	#body_content_inner table.email-order-details .order-totals td {
+		padding: 6px 6px !important;
 	}
 
 	#template_header h1 {
