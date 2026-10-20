@@ -1369,7 +1369,12 @@ function cz_order_payment_status( $order ) {
 		return 'Payée';
 	}
 	if ( 'bacs' === $order->get_payment_method() ) {
-		return 'En attente de votre virement';
+		$labels = array(
+			'virement' => 'En attente de votre virement',
+			'paypal'   => 'En attente de votre paiement PayPal',
+			'wero'     => 'En attente de votre paiement Wero',
+		);
+		return $labels[ cz_order_bacs_option( $order ) ] ?? $labels['virement'];
 	}
 	return wc_get_order_status_name( $order->get_status() );
 }
@@ -1386,35 +1391,7 @@ function cz_order_item_options( $item ) {
 	return implode( ' / ', array_filter( $parts ) );
 }
 
-/* E-mails envoyés au client : rappel des instructions */
-add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_admin, $plain_text ) {
-	if ( $sent_to_admin || ! cz_order_is_pickup( $order ) ) {
-		return;
-	}
-	$s    = cz_pickup_settings();
-	$rows = cz_pickup_hours_rows( $s['hours'] );
-
-	if ( $plain_text ) {
-		echo "\n" . esc_html( strtoupper( $s['title'] ) ) . "\n\n";
-		echo 'Retrait en boutique : ' . esc_html( $s['address'] ) . "\n\n";
-		foreach ( $rows as $row ) {
-			echo esc_html( $row[0] . ' : ' . $row[1] ) . "\n";
-		}
-		echo "\n" . esc_html( $s['message'] ) . "\n\n";
-		return;
-	}
-
-	echo '<h2>' . esc_html( $s['title'] ) . '</h2>';
-	echo '<p>Retrait en boutique : ' . esc_html( $s['address'] ) . '</p>';
-	if ( $rows ) {
-		echo '<table cellspacing="0" cellpadding="4" style="margin-bottom:16px;">';
-		foreach ( $rows as $row ) {
-			echo '<tr><td style="padding:2px 24px 2px 0;">' . esc_html( $row[0] ) . '</td><td style="padding:2px 0;">' . esc_html( $row[1] ) . '</td></tr>';
-		}
-		echo '</table>';
-	}
-	echo '<p>' . nl2br( esc_html( $s['message'] ) ) . '</p>';
-}, 10, 3 );
+/* Les instructions de retrait des e-mails sont dans la section 17 */
 
 /* =========================================================================
  * 16. Compte client (itération 7)
@@ -1490,7 +1467,7 @@ function cz_active_order_statuses() {
 function cz_order_steps( $order ) {
 	$labels = cz_order_is_pickup( $order )
 		? array( 'Commande reçue', 'En préparation', 'Prête à retirer', 'Retirée' )
-		: array( 'Commande reçue', 'En préparation', 'Expédiée', 'Livrée' );
+		: array( 'Commande reçue', 'En préparation', 'Prête à expédier', 'Expédiée' );
 	$map = array(
 		'pending'      => 0,
 		'on-hold'      => 0,
@@ -1723,3 +1700,309 @@ add_filter( 'body_class', function ( $classes ) {
 	}
 	return array_unique( $classes );
 } );
+
+/* =========================================================================
+ * 17. E-mails transactionnels (itération 8)
+ *     Gabarits : woocommerce/emails/ (en-tête, pied, styles, e-mails client)
+ *     Nouvel e-mail : « Commande prête à retirer » (inc/class-cz-email-ready-pickup.php)
+ * ====================================================================== */
+
+/* Nouvel e-mail « Commande prête à retirer » */
+add_filter( 'woocommerce_email_classes', function ( $emails ) {
+	require_once get_stylesheet_directory() . '/inc/class-cz-email-ready-pickup.php';
+	$emails['CZ_Email_Ready_Pickup'] = new CZ_Email_Ready_Pickup();
+	return $emails;
+} );
+
+/* WooCommerce déclenche l'e-mail quand la commande passe à « Prête à retirer » */
+add_filter( 'woocommerce_email_actions', function ( $actions ) {
+	$actions[] = 'woocommerce_order_status_ready-pickup';
+	return $actions;
+} );
+
+/* Liste des commandes : action groupée « Changer le statut en Prête à retirer » */
+foreach ( array( 'bulk_actions-edit-shop_order', 'bulk_actions-woocommerce_page_wc-orders' ) as $cz_bulk_hook ) {
+	add_filter( $cz_bulk_hook, function ( $actions ) {
+		$actions['mark_ready-pickup'] = 'Changer le statut en Prête à retirer';
+		return $actions;
+	}, 20 );
+}
+
+/* « Bonjour Prénom, » */
+function cz_email_hello( $order ) {
+	$first = $order->get_billing_first_name();
+	echo '<p>' . esc_html( $first ? 'Bonjour ' . $first . ',' : 'Bonjour,' ) . '</p>';
+}
+
+/* Frise des 4 étapes, comme dans l'espace client */
+function cz_email_track( $order ) {
+	list( $labels, $current ) = cz_order_steps( $order );
+	echo '<table class="cz-email-track" border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"><tr>';
+	foreach ( $labels as $i => $label ) {
+		$done = $i <= $current ? ' is-done' : '';
+		$now  = $i === $current ? ' is-current' : '';
+		echo '<td><div class="cz-email-bar' . esc_attr( $done ) . '">&nbsp;</div><div class="cz-email-step' . esc_attr( $now ) . '">' . esc_html( $label ) . '</div></td>';
+	}
+	echo '</tr></table>';
+}
+
+/* Carte beige « Instructions pour le retrait » (HTML ou texte brut) */
+function cz_email_pickup_card( $order, $plain_text = false ) {
+	if ( ! cz_order_is_pickup( $order ) ) {
+		return;
+	}
+	$s    = cz_pickup_settings();
+	$rows = cz_pickup_hours_rows( $s['hours'] );
+
+	if ( $plain_text ) {
+		echo "\n" . esc_html( mb_strtoupper( $s['title'] ) ) . "\n\n";
+		echo esc_html( 'Retrait en boutique : ' . $s['address'] ) . "\n\n";
+		foreach ( $rows as $row ) {
+			echo esc_html( $row[0] . ' : ' . $row[1] ) . "\n";
+		}
+		echo "\n" . esc_html( $s['message'] ) . "\n";
+		return;
+	}
+
+	echo '<table class="cz-email-card" border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"><tr><td class="cz-email-card-cell">';
+	echo '<h2>' . esc_html( $s['title'] ) . '</h2>';
+	echo '<p><strong>Retrait en boutique :</strong> ' . esc_html( $s['address'] ) . '</p>';
+	if ( $rows ) {
+		echo '<p><strong>Horaires :</strong></p><table class="cz-email-hours" border="0" cellpadding="0" cellspacing="0" role="presentation">';
+		foreach ( $rows as $row ) {
+			echo '<tr><td>' . esc_html( $row[0] ) . '</td><td>' . esc_html( $row[1] ) . '</td></tr>';
+		}
+		echo '</table>';
+	}
+	echo '<p style="margin-top:14px;">' . nl2br( esc_html( $s['message'] ) ) . '</p>';
+	echo '</td></tr></table>';
+}
+
+/* Instructions de retrait dans les e-mails concernés (après le tableau de la commande) */
+add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_admin, $plain_text, $email = null ) {
+	$ids = array( 'customer_on_hold_order', 'customer_processing_order', 'customer_invoice' );
+	if ( $sent_to_admin || ! $email || ! in_array( $email->id, $ids, true ) ) {
+		return;
+	}
+	cz_email_pickup_card( $order, $plain_text );
+}, 10, 4 );
+
+/* Bouton « Voir ma commande » (clients ayant un compte) */
+function cz_email_order_button( $order ) {
+	if ( ! $order->get_customer_id() ) {
+		return;
+	}
+	echo '<p style="margin-top:32px;text-align:center;"><a class="cz-email-btn" href="' . esc_url( $order->get_view_order_url() ) . '">Voir ma commande</a></p>';
+}
+
+/* =========================================================================
+ * 18. Paiement à distance : virement bancaire, PayPal ou Wero
+ *     Sous-choix du moyen de paiement « virement » (bacs). Pas de vrai
+ *     paiement en ligne : le client reçoit les instructions du moyen choisi
+ *     (page de confirmation + e-mail), la commande reste « En attente ».
+ *     Réglages : WooCommerce › Paiement à distance.
+ * ====================================================================== */
+
+/* Réglages PayPal et Wero : WooCommerce › Paiement à distance
+   (la nouvelle page « Virement bancaire » de WooCommerce n'accepte pas de champs ajoutés) */
+add_action( 'admin_menu', function () {
+	add_submenu_page(
+		'woocommerce',
+		'Paiement à distance',
+		'Paiement à distance',
+		'manage_woocommerce',
+		'cz-paiement',
+		'cz_remote_pay_page'
+	);
+}, 61 );
+
+add_action( 'admin_init', function () {
+	register_setting(
+		'cz_remote_pay',
+		'cz_remote_pay',
+		array(
+			'type'              => 'array',
+			'sanitize_callback' => function ( $input ) {
+				$input = (array) $input;
+				return array(
+					'cz_paypal' => sanitize_text_field( $input['cz_paypal'] ?? '' ),
+					'cz_wero'   => sanitize_text_field( $input['cz_wero'] ?? '' ),
+				);
+			},
+		)
+	);
+} );
+
+add_filter( 'option_page_capability_cz_remote_pay', fn() => 'manage_woocommerce' );
+
+function cz_remote_pay_page() {
+	?>
+	<div class="wrap">
+		<h1>Paiement à distance</h1>
+		<p>Ces choix s’affichent sous le moyen de paiement « virement bancaire » (WooCommerce › Réglages › Paiements). Le client reçoit les instructions du moyen choisi sur la page de confirmation et dans l’e-mail. Laisser un champ vide pour ne pas proposer ce moyen.</p>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'cz_remote_pay' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="cz-paypal">PayPal</label></th>
+					<td>
+						<input type="text" id="cz-paypal" name="cz_remote_pay[cz_paypal]" value="<?php echo esc_attr( cz_bacs_setting( 'cz_paypal' ) ); ?>" class="regular-text" aria-describedby="cz-paypal-help">
+						<p class="description" id="cz-paypal-help">Adresse e-mail PayPal ou lien https://paypal.me/…</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-wero">Wero</label></th>
+					<td>
+						<input type="text" id="cz-wero" name="cz_remote_pay[cz_wero]" value="<?php echo esc_attr( cz_bacs_setting( 'cz_wero' ) ); ?>" class="regular-text" aria-describedby="cz-wero-help">
+						<p class="description" id="cz-wero-help">Numéro de téléphone ou e-mail Wero.</p>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button( 'Enregistrer' ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/* Réglage PayPal / Wero */
+function cz_bacs_setting( $key ) {
+	$settings = (array) get_option( 'cz_remote_pay', array() );
+	return isset( $settings[ $key ] ) ? trim( (string) $settings[ $key ] ) : '';
+}
+
+/* Choix proposés (PayPal et Wero seulement s'ils sont réglés) */
+function cz_bacs_options() {
+	$options = array(
+		'virement' => array( 'Virement bancaire', 'Coordonnées bancaires après la commande' ),
+	);
+	if ( cz_bacs_setting( 'cz_paypal' ) ) {
+		$options['paypal'] = array( 'PayPal', 'Lien ou adresse PayPal après la commande' );
+	}
+	if ( cz_bacs_setting( 'cz_wero' ) ) {
+		$options['wero'] = array( 'Wero', 'Paiement depuis votre application bancaire' );
+	}
+	return $options;
+}
+
+/* Choix envoyé par le formulaire (aussi lors des mises à jour automatiques de la page) */
+function cz_bacs_posted_option() {
+	// phpcs:disable WordPress.Security.NonceVerification
+	$value = '';
+	if ( isset( $_POST['cz_bacs_option'] ) ) {
+		$value = sanitize_key( wp_unslash( $_POST['cz_bacs_option'] ) );
+	} elseif ( isset( $_POST['post_data'] ) ) {
+		parse_str( wp_unslash( $_POST['post_data'] ), $data ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$value = isset( $data['cz_bacs_option'] ) ? sanitize_key( $data['cz_bacs_option'] ) : '';
+	}
+	// phpcs:enable
+	return array_key_exists( $value, cz_bacs_options() ) ? $value : 'virement';
+}
+
+/* Liste des choix sous « Par virement » (appelée dans checkout/payment-method.php) */
+function cz_bacs_options_field() {
+	$options = cz_bacs_options();
+	if ( count( $options ) < 2 ) {
+		return;
+	}
+	$current = cz_bacs_posted_option();
+	echo '<fieldset class="cz-pay-options"><legend class="screen-reader-text">Comment souhaitez-vous payer ?</legend>';
+	foreach ( $options as $key => $option ) {
+		printf(
+			'<label class="cz-pay-option"><input type="radio" name="cz_bacs_option" value="%1$s" %2$s><span><span class="cz-pay-option-title">%3$s</span><span class="cz-pay-option-desc">%4$s</span></span></label>',
+			esc_attr( $key ),
+			checked( $current, $key, false ),
+			esc_html( $option[0] ),
+			esc_html( $option[1] )
+		);
+	}
+	echo '</fieldset>';
+}
+
+/* Enregistrement du choix sur la commande + intitulé du moyen de paiement */
+add_action( 'woocommerce_checkout_create_order', function ( $order ) {
+	if ( 'bacs' !== $order->get_payment_method() ) {
+		return;
+	}
+	$option = cz_bacs_posted_option();
+	$titles = array(
+		'virement' => 'Par virement bancaire',
+		'paypal'   => 'Par PayPal',
+		'wero'     => 'Par Wero',
+	);
+	$order->update_meta_data( '_cz_bacs_option', $option );
+	$order->set_payment_method_title( $titles[ $option ] );
+} );
+
+function cz_order_bacs_option( $order ) {
+	$option = $order ? (string) $order->get_meta( '_cz_bacs_option' ) : '';
+	return in_array( $option, array( 'virement', 'paypal', 'wero' ), true ) ? $option : 'virement';
+}
+
+/* PayPal / Wero : pas de coordonnées bancaires ni d'instructions du virement */
+add_filter( 'woocommerce_bacs_accounts', function ( $accounts, $order_id = 0 ) {
+	$order = $order_id ? wc_get_order( $order_id ) : null;
+	return ( $order && 'virement' !== cz_order_bacs_option( $order ) ) ? array() : $accounts;
+}, 10, 2 );
+
+function cz_bacs_mute_instructions( $order ) {
+	if ( ! $order || 'bacs' !== $order->get_payment_method() || 'virement' === cz_order_bacs_option( $order ) ) {
+		return;
+	}
+	$gateways = WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
+	if ( isset( $gateways['bacs'] ) ) {
+		$gateways['bacs']->instructions = '';
+	}
+}
+
+/* Instructions PayPal / Wero (page de confirmation et e-mail) */
+function cz_bacs_alt_instructions( $order, $plain_text = false ) {
+	$option = cz_order_bacs_option( $order );
+	if ( 'virement' === $option ) {
+		return;
+	}
+	$total = wp_strip_all_tags( $order->get_formatted_order_total() );
+	$ref   = 'N°' . $order->get_order_number();
+
+	if ( 'paypal' === $option ) {
+		$target = cz_bacs_setting( 'cz_paypal' );
+		$title  = 'Payer avec PayPal';
+		$text   = sprintf( 'Envoyez %1$s %2$s, en indiquant la référence %3$s.', $total, 0 === strpos( $target, 'http' ) ? 'avec le lien ci-dessous' : 'à ' . $target, $ref );
+		$link   = 0 === strpos( $target, 'http' ) ? $target : '';
+	} else {
+		$target = cz_bacs_setting( 'cz_wero' );
+		$title  = 'Payer avec Wero';
+		$text   = sprintf( 'Depuis votre application bancaire, envoyez %1$s par Wero à %2$s, en indiquant la référence %3$s.', $total, $target, $ref );
+		$link   = '';
+	}
+
+	if ( $plain_text ) {
+		echo "\n" . esc_html( mb_strtoupper( $title ) ) . "\n" . esc_html( $text ) . "\n" . ( $link ? esc_url( $link ) . "\n" : '' ) . "\n";
+		return;
+	}
+	echo '<section class="cz-alt-pay"><h2>' . esc_html( $title ) . '</h2><p>' . esc_html( $text ) . '</p>';
+	if ( $link ) {
+		echo '<p><a class="cz-btn cz-email-btn" href="' . esc_url( $link ) . '" target="_blank" rel="noopener">Payer avec PayPal</a></p>';
+	}
+	echo '<p>Votre commande sera préparée dès réception du paiement.</p></section>';
+}
+
+/* Page de confirmation */
+add_action( 'woocommerce_thankyou_bacs', function ( $order_id ) {
+	cz_bacs_mute_instructions( wc_get_order( $order_id ) );
+}, 5 );
+add_action( 'woocommerce_thankyou_bacs', function ( $order_id ) {
+	cz_bacs_alt_instructions( wc_get_order( $order_id ) );
+}, 20 );
+
+/* E-mails envoyés au client (même condition que WooCommerce : commande en attente) */
+add_action( 'woocommerce_email_before_order_table', function ( $order, $sent_to_admin ) {
+	if ( ! $sent_to_admin ) {
+		cz_bacs_mute_instructions( $order );
+	}
+}, 5, 2 );
+add_action( 'woocommerce_email_before_order_table', function ( $order, $sent_to_admin, $plain_text ) {
+	if ( $sent_to_admin || 'bacs' !== $order->get_payment_method() || ! $order->has_status( 'on-hold' ) ) {
+		return;
+	}
+	cz_bacs_alt_instructions( $order, $plain_text );
+}, 20, 3 );
