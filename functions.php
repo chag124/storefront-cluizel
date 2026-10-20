@@ -21,6 +21,18 @@ add_action( 'wp_enqueue_scripts', function () {
 	);
 }, 5 );
 
+/* style.css rechargé à chaque modification : sa version est la date du fichier
+   (sinon le navigateur et le serveur gardent l'ancienne feuille « ver=2.0.0 ») */
+add_filter( 'style_loader_src', function ( $src, $handle ) {
+	if ( 'storefront-child-style' === $handle ) {
+		$file = get_stylesheet_directory() . '/style.css';
+		if ( file_exists( $file ) ) {
+			$src = add_query_arg( 'ver', filemtime( $file ), remove_query_arg( 'ver', $src ) );
+		}
+	}
+	return $src;
+}, 10, 2 );
+
 /* =========================================================================
  * 2. Couleurs et mise en page de Storefront fixées dans le code
  *    (identiques en Dev et en Prod, sans passer par le Customizer)
