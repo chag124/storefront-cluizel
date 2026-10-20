@@ -163,10 +163,142 @@ input[type="submit"] {
   gap: 20px;
 }
 
+/* Menu burger : caché sur ordinateur */
+.cz-burger,
+.cz-nav-account {
+  display: none;
+}
+
 @media (max-width: 767px) {
+  /* Burger à gauche, logo au centre, panier à droite */
+  .cz-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0 8px;
+    min-height: 80px;
+    padding: 12px 0;
+  }
+
+  .cz-burger {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .cz-logo {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 18px;
+  }
+
+  .cz-header-actions {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    gap: 12px;
+  }
+
+  .cz-header-actions .cz-account {
+    display: none;
+  }
+
+  .cz-header-actions .cz-btn {
+    padding: 11px 18px;
+    font-size: 15px;
+  }
+
+  .cz-burger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    width: 44px;
+    height: 44px;
+    margin-left: -8px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .cz-burger span {
+    display: block;
+    width: 26px;
+    height: 2px;
+    background: var(--cz-noir);
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  .cz-header.is-open .cz-burger span:nth-child(1) {
+    transform: translateY(9px) rotate(45deg);
+  }
+
+  .cz-header.is-open .cz-burger span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .cz-header.is-open .cz-burger span:nth-child(3) {
+    transform: translateY(-9px) rotate(-45deg);
+  }
+
+  /* Panneau du menu, sous le logo */
   .cz-nav {
-    order: 3;
+    display: none;
+    grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
+    margin-top: 12px;
+    padding: 8px 0 4px;
+    border-top: 1px solid var(--cz-noir);
+  }
+
+  .cz-header.is-open .cz-nav {
+    display: block !important;
+  }
+
+  .cz-menu {
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+  }
+
+  .cz-menu a,
+  .cz-nav-account {
+    display: block;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    color: var(--cz-noir);
+    font-size: 18px;
+    text-decoration: none;
+  }
+
+  .cz-nav-account {
+    border-bottom: 0;
+  }
+}
+
+/* Très petits écrans : le logo reste entre le burger et le panier sans les chevaucher */
+@media (max-width: 389px) {
+  .cz-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .cz-logo {
+    justify-self: center;
+    font-size: 16px;
+  }
+
+  .cz-header-actions .cz-btn {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cz-burger span {
+    transition: none;
   }
 }
 
@@ -249,9 +381,75 @@ input[type="submit"] {
   display: none;
 }
 
-.cz-result-count {
+.cz-shop-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin: 0 0 40px;
+}
+
+.cz-result-count {
+  margin: 0;
   font-size: 15px;
+}
+
+/* Sur ordinateur, catégories et prix sont dans la barre latérale */
+.cz-cat-bar,
+.cz-price-pill {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .cz-catalogue .cz-page-title {
+    margin-bottom: 32px;
+  }
+
+  .cz-cat-bar {
+    display: block !important;
+    margin: 0 0 8px;
+  }
+
+  .cz-cat-bar ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 24px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cz-cat-bar a {
+    color: var(--cz-noir);
+    font-size: 15px;
+    text-decoration: none;
+  }
+
+  .cz-cat-bar .is-active a,
+  .cz-cat-bar a:hover {
+    text-decoration: underline;
+  }
+
+  .cz-price-pill {
+    display: inline-flex !important;
+    gap: 14px;
+    padding: 9px 26px;
+    white-space: nowrap;
+  }
+
+  .cz-shop-bar {
+    margin-bottom: 28px;
+  }
+
+  /* La barre latérale est remplacée par la ligne de catégories et la pilule */
+  .cz-catalogue #secondary {
+    display: none;
+  }
+
+  .cz-catalogue .site-content {
+    padding-top: 24px;
+  }
 }
 
 /* Barre latérale */
@@ -1784,10 +1982,11 @@ ul.products li.product .cz-card-footer .price {
 }
 
 @media (max-width: 767px) {
-  .woocommerce-checkout .cz-nav,
-  .woocommerce-checkout .cz-account,
-  .woocommerce-checkout .cz-cart-label {
-    display: none;
+  .woocommerce-checkout:not(.woocommerce-order-received) .cz-nav,
+  .woocommerce-checkout:not(.woocommerce-order-received) .cz-burger,
+  .woocommerce-checkout .cz-header-actions .cz-account,
+  .woocommerce-checkout:not(.woocommerce-order-received) .cz-cart-label {
+    display: none !important;
   }
 
   .woocommerce-checkout .cz-back-label {

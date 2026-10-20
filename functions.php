@@ -133,9 +133,13 @@ function cz_header() {
 	$count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 	?>
 	<div class="cz-header">
+		<button type="button" class="cz-burger" aria-controls="cz-nav" aria-expanded="false" aria-label="Ouvrir le menu">
+			<span></span><span></span><span></span>
+		</button>
+
 		<a class="cz-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>">CLUIZEL</a>
 
-		<nav class="cz-nav" aria-label="Navigation principale">
+		<nav class="cz-nav" id="cz-nav" aria-label="Navigation principale">
 			<?php
 			wp_nav_menu(
 				array(
@@ -147,6 +151,7 @@ function cz_header() {
 				)
 			);
 			?>
+			<a class="cz-nav-account" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">Mon compte</a>
 		</nav>
 
 		<div class="cz-header-actions">
@@ -161,6 +166,40 @@ function cz_header() {
 	</div>
 	<?php
 }
+
+/* Menu burger (mobile) : ouverture / fermeture */
+add_action( 'wp_footer', function () {
+	?>
+	<script>
+	( function () {
+		var header = document.querySelector( '.cz-header' );
+		var button = document.querySelector( '.cz-burger' );
+		if ( ! header || ! button ) {
+			return;
+		}
+		function toggle( open ) {
+			header.classList.toggle( 'is-open', open );
+			button.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+			button.setAttribute( 'aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu' );
+		}
+		button.addEventListener( 'click', function () {
+			toggle( ! header.classList.contains( 'is-open' ) );
+		} );
+		document.addEventListener( 'keydown', function ( e ) {
+			if ( 'Escape' === e.key && header.classList.contains( 'is-open' ) ) {
+				toggle( false );
+				button.focus();
+			}
+		} );
+		window.matchMedia( '(min-width: 768px)' ).addEventListener( 'change', function ( mq ) {
+			if ( mq.matches ) {
+				toggle( false );
+			}
+		} );
+	} )();
+	</script>
+	<?php
+} );
 
 /* Fil d'Ariane : « Accueil / La carte / … » */
 add_filter( 'woocommerce_breadcrumb_defaults', function ( $defaults ) {
@@ -229,10 +268,49 @@ add_filter( 'storefront_loop_columns', fn() => 3 );
 add_filter( 'loop_shop_per_page', fn() => 9, 20 );
 add_filter( 'storefront_products_per_page', fn() => 9 );
 
+/* Catégories de la carte (sans « Non classé ») */
+function cz_catalogue_categories() {
+	return get_terms(
+		array(
+			'taxonomy'   => 'product_cat',
+			'hide_empty' => true,
+			'exclude'    => array( (int) get_option( 'default_product_cat' ) ),
+		)
+	);
+}
+
+/* Compteur + pilule de prix (la pilule n'est visible que sur mobile,
+   sur ordinateur elle est dans la barre latérale) */
 add_action( 'woocommerce_before_shop_loop', function () {
 	$total = (int) wc_get_loop_prop( 'total' );
-	printf( '<p class="cz-result-count">%d %s</p>', $total, $total > 1 ? 'produits' : 'produit' );
+	$range = cz_price_range();
+	echo '<div class="cz-shop-bar">';
+	printf( '<p class="cz-result-count">%d %s</p>', $total, $total > 1 ? 'produits' : 'produit' ); // phpcs:ignore WordPress.Security.EscapeOutput
+	if ( $range ) {
+		echo '<span class="cz-pill cz-price-pill"><span>Prix</span> ' . esc_html( $range ) . '</span>';
+	}
+	echo '</div>';
 }, 20 );
+
+/* Mobile : catégories en ligne sous le titre */
+add_action( 'storefront_before_content', function () {
+	if ( ! cz_is_catalogue() ) {
+		return;
+	}
+	$current = is_product_category() ? get_queried_object_id() : 0;
+	echo '<div class="col-full"><nav class="cz-cat-bar" aria-label="Catégories"><ul>';
+	foreach ( cz_catalogue_categories() as $cat ) {
+		$active = $cat->term_id === $current;
+		printf(
+			'<li%s><a href="%s"%s>%s</a></li>',
+			$active ? ' class="is-active"' : '',
+			esc_url( get_term_link( $cat ) ),
+			$active ? ' aria-current="page"' : '',
+			esc_html( $cat->name )
+		);
+	}
+	echo '</ul></nav></div>';
+}, 21 );
 
 /* Fourchette de prix arrondie aux 5 € (ex. « 5€ à 50€ ») */
 function cz_price_range() {
@@ -256,14 +334,8 @@ function cz_catalogue_sidebar() {
 	if ( ! cz_is_catalogue() ) {
 		return;
 	}
-	$categories = get_terms(
-		array(
-			'taxonomy'   => 'product_cat',
-			'hide_empty' => true,
-			'exclude'    => array( (int) get_option( 'default_product_cat' ) ),
-		)
-	);
-	$current = is_product_category() ? get_queried_object_id() : 0;
+	$categories = cz_catalogue_categories();
+	$current    = is_product_category() ? get_queried_object_id() : 0;
 	?>
 	<aside id="secondary" class="widget-area cz-sidebar" aria-label="Filtres">
 		<p class="cz-sidebar-title cz-sidebar-title--line">Catégories</p>
@@ -1630,4 +1702,12 @@ add_action( 'woocommerce_before_customer_login_form', function () {
 	if ( isset( $_GET['deconnecte'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 		echo '<div class="woocommerce-message" role="status">Déconnexion réussie. À bientôt chez Cluizel !</div>';
 	}
+} );
+
+/* Classe sur la page de confirmation (le menu burger y reste visible) */
+add_filter( 'body_class', function ( $classes ) {
+	if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-received' ) ) {
+		$classes[] = 'woocommerce-order-received';
+	}
+	return array_unique( $classes );
 } );
