@@ -15,6 +15,9 @@ cz_email_hello( $order );
 
 if ( cz_order_is_pickup( $order ) ) {
 	echo '<p>Votre commande N°' . esc_html( $order->get_order_number() ) . ' a bien été retirée. Merci de votre visite, et bonne dégustation !</p>';
+	if ( 'cod' === $order->get_payment_method() ) {
+		echo '<p>Nous confirmons la réception de votre paiement de ' . wp_kses_post( $order->get_formatted_order_total() ) . ' en boutique.</p>';
+	}
 } else {
 	echo '<p>Votre commande N°' . esc_html( $order->get_order_number() ) . ' a été expédiée et arrive bientôt chez vous. Merci de votre confiance, et bonne dégustation !</p>';
 }

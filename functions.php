@@ -1544,7 +1544,9 @@ add_action( 'woocommerce_account_dashboard', function () {
 		echo '<p>Livraison à :</p><address>' . wp_kses_post( $order->get_formatted_shipping_address() ) . '</address>';
 	}
 
-	echo '</div></section>';
+	echo '</div>';
+	cz_cancel_order_button( $order );
+	echo '</section>';
 } );
 
 /* Le texte d'accueil WooCommerce est remplacé par le nôtre */
@@ -2058,3 +2060,81 @@ add_filter( 'woocommerce_get_order_item_totals', function ( $totals, $order ) {
 	}
 	return $totals;
 }, 20, 2 );
+
+/* =========================================================================
+ * 19. Commandes (itération 9)
+ *     Annulation par le client, e-mails d'avancement selon le paiement,
+ *     colonne « Réception » dans la liste des commandes de l'admin.
+ * ====================================================================== */
+
+/* Le client peut annuler une commande en attente ou en préparation
+   (pas une commande prête à retirer, ni terminée) */
+add_filter( 'woocommerce_valid_order_statuses_for_cancel', function ( $statuses ) {
+	return array_unique( array_merge( $statuses, array( 'on-hold', 'processing' ) ) );
+}, 20 );
+
+function cz_order_can_be_cancelled( $order ) {
+	return $order instanceof WC_Order
+		&& $order->get_customer_id() === get_current_user_id()
+		&& $order->has_status( apply_filters( 'woocommerce_valid_order_statuses_for_cancel', array( 'pending', 'failed' ), $order ) );
+}
+
+/* Bouton « Annuler ma commande » (tableau de bord, Mes commandes, détail d'une commande) */
+function cz_cancel_order_button( $order ) {
+	if ( ! cz_order_can_be_cancelled( $order ) ) {
+		return;
+	}
+	$url = $order->get_cancel_order_url( wc_get_account_endpoint_url( 'orders' ) );
+	$msg = $order->get_date_paid() && 'cod' !== $order->get_payment_method()
+		? 'Annuler la commande N°' . $order->get_order_number() . ' ? Vous serez remboursé(e).'
+		: 'Annuler la commande N°' . $order->get_order_number() . ' ?';
+	printf(
+		'<p class="cz-cancel-order"><a class="cz-btn-outline" href="%1$s" onclick="return confirm(%2$s);">Annuler ma commande</a></p>',
+		esc_url( $url ),
+		esc_attr( wp_json_encode( $msg ) )
+	);
+}
+
+add_action( 'woocommerce_view_order', function ( $order_id ) {
+	cz_cancel_order_button( wc_get_order( $order_id ) );
+}, 20 );
+
+/* Message après l'annulation */
+add_filter( 'woocommerce_order_cancelled_notice', fn() => 'Votre commande a bien été annulée. Un e-mail de confirmation vient de vous être envoyé.' );
+
+/* Paiement reçu ? (virement validé par la boutique ; le paiement au retrait est encaissé en boutique) */
+function cz_order_was_paid_online( $order ) {
+	return 'cod' !== $order->get_payment_method() && (bool) $order->get_date_paid();
+}
+
+/* Liste des commandes de l'admin : colonne « Réception » (retrait ou livraison) */
+function cz_admin_reception_label( $order ) {
+	if ( ! $order instanceof WC_Order ) {
+		return '';
+	}
+	return cz_order_is_pickup( $order ) ? 'Retrait en boutique' : ( $order->get_shipping_method() ? $order->get_shipping_method() : '—' );
+}
+
+$cz_add_column = function ( $columns ) {
+	$new = array();
+	foreach ( $columns as $key => $label ) {
+		$new[ $key ] = $label;
+		if ( 'order_status' === $key ) {
+			$new['cz_reception'] = 'Réception';
+		}
+	}
+	return $new;
+};
+add_filter( 'manage_woocommerce_page_wc-orders_columns', $cz_add_column, 20 );
+add_filter( 'manage_edit-shop_order_columns', $cz_add_column, 20 );
+
+add_action( 'manage_woocommerce_page_wc-orders_custom_column', function ( $column, $order ) {
+	if ( 'cz_reception' === $column ) {
+		echo esc_html( cz_admin_reception_label( $order ) );
+	}
+}, 10, 2 );
+add_action( 'manage_shop_order_posts_custom_column', function ( $column, $post_id ) {
+	if ( 'cz_reception' === $column ) {
+		echo esc_html( cz_admin_reception_label( wc_get_order( $post_id ) ) );
+	}
+}, 10, 2 );

@@ -19,6 +19,12 @@ if ( cz_order_is_pickup( $order ) ) {
 	echo '<p>Merci pour votre commande N°' . esc_html( $order->get_order_number() ) . ' ! Nos chocolatiers la préparent avec soin. Nous vous préviendrons dès son expédition.</p>';
 }
 
+if ( cz_order_was_paid_online( $order ) ) {
+	echo '<p><strong>Nous avons bien reçu votre paiement de ' . wp_kses_post( $order->get_formatted_order_total() ) . '.</strong></p>';
+} elseif ( 'cod' === $order->get_payment_method() ) {
+	echo '<p>Vous réglerez ' . wp_kses_post( $order->get_formatted_order_total() ) . ' en boutique, au moment du retrait.</p>';
+}
+
 cz_email_track( $order );
 
 do_action( 'woocommerce_email_order_details', $order, $sent_to_admin, $plain_text, $email );

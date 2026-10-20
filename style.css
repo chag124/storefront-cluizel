@@ -3314,3 +3314,30 @@ p.no-comments {
   color: var(--cz-blanc) !important;
   text-decoration: none;
 }
+
+/* Annuler ma commande (itération 9) */
+.cz-cancel-order {
+  margin: 24px 0 0;
+}
+
+.cz-cancel-order .cz-btn-outline {
+  padding: 10px 24px;
+  text-decoration: none;
+}
+
+.cz-cancel-order .cz-btn-outline:hover {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+/* Messages affichés au-dessus du titre (Storefront) : pleine largeur,
+   même sur la page du compte où .woocommerce est une grille */
+.storefront-shop-messages .woocommerce {
+  display: block !important;
+}
+
+.woocommerce-account.logged-in .woocommerce > .woocommerce-message,
+.woocommerce-account.logged-in .woocommerce > .woocommerce-info,
+.woocommerce-account.logged-in .woocommerce > .woocommerce-error {
+  grid-column: 1 / -1;
+}

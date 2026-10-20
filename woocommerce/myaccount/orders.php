@@ -68,6 +68,7 @@ else :
 			<span>Total</span>
 			<strong><?php echo wp_kses_post( $last->get_formatted_order_total() ); ?></strong>
 		</p>
+		<?php cz_cancel_order_button( $last ); ?>
 	</section>
 
 	<?php if ( $cz_orders ) : ?>
