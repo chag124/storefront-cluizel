@@ -95,6 +95,12 @@ defined( 'ABSPATH' ) || exit;
 								<dt>Sous-total</dt>
 								<dd><?php echo wp_kses_post( $order->get_subtotal_to_display() ); ?></dd>
 							</div>
+							<?php if ( (float) $order->get_total_discount() > 0 ) : ?>
+								<div class="cz-row cz-row-discount">
+									<dt>Code promo <?php echo esc_html( strtoupper( implode( ', ', $order->get_coupon_codes() ) ) ); ?></dt>
+									<dd>-<?php echo wp_kses_post( wc_price( $order->get_total_discount( 'incl' !== get_option( 'woocommerce_tax_display_cart' ) ), array( 'currency' => $order->get_currency() ) ) ); ?></dd>
+								</div>
+							<?php endif; ?>
 							<?php if ( $order->get_shipping_method() ) : ?>
 								<div class="cz-row">
 									<dt><?php echo esc_html( $order->get_shipping_method() ); ?></dt>

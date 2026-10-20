@@ -2138,3 +2138,79 @@ add_action( 'manage_shop_order_posts_custom_column', function ( $column, $post_i
 		echo esc_html( cz_admin_reception_label( wc_get_order( $post_id ) ) );
 	}
 }, 10, 2 );
+
+/* =========================================================================
+ * 20. Promotions : codes promo (itération 10)
+ *     Champ « Code promo » dans le récapitulatif du panier, ligne de réduction
+ *     avec « Retirer », messages clairs (code erroné, expiré, indisponible).
+ * ====================================================================== */
+
+/* Champ « Code promo » dans le récapitulatif, avant « Passer commande »
+   (formulaire séparé : la page se recharge et affiche le message) */
+add_action( 'woocommerce_proceed_to_checkout', function () {
+	if ( ! wc_coupons_enabled() ) {
+		return;
+	}
+	?>
+	<form class="cz-coupon" action="<?php echo esc_url( wc_get_cart_url() ); ?>" method="post">
+		<label for="cz_coupon_code">Code promo</label>
+		<div class="cz-coupon-field">
+			<input type="text" name="coupon_code" id="cz_coupon_code" class="input-text" autocomplete="off" placeholder="Ex. : CLUIZEL10" required>
+			<button type="submit" class="cz-btn" name="apply_coupon" value="1">Appliquer</button>
+		</div>
+		<input type="hidden" name="woocommerce-cart-nonce" value="<?php echo esc_attr( wp_create_nonce( 'woocommerce-cart' ) ); ?>">
+	</form>
+	<?php
+}, 5 );
+
+/* Ligne de réduction : « Code promo CLUIZEL10 » … « -2,96 € Retirer » */
+add_filter( 'woocommerce_cart_totals_coupon_label', function ( $label, $coupon ) {
+	return 'Code promo <span class="cz-coupon-code">' . esc_html( strtoupper( $coupon->get_code() ) ) . '</span>';
+}, 10, 2 );
+
+add_filter( 'woocommerce_cart_totals_coupon_html', function ( $html ) {
+	return str_replace( array( '[Retirer]', '[Remove]', '[Supprimer]' ), 'Retirer', $html );
+} );
+
+/* Messages d'erreur clairs */
+add_filter( 'woocommerce_coupon_error', function ( $err, $err_code, $coupon ) {
+	$code = $coupon instanceof WC_Coupon ? strtoupper( $coupon->get_code() ) : '';
+	switch ( $err_code ) {
+		case WC_Coupon::E_WC_COUPON_NOT_EXIST:
+			return sprintf( 'Le code « %s » n’existe pas. Vérifiez son orthographe.', $code );
+		case WC_Coupon::E_WC_COUPON_EXPIRED:
+			return sprintf( 'Le code « %s » a expiré.', $code );
+		case WC_Coupon::E_WC_COUPON_USAGE_LIMIT_REACHED:
+			return sprintf( 'Le code « %s » n’est plus disponible : il a déjà été utilisé le nombre de fois prévu.', $code );
+		case WC_Coupon::E_WC_COUPON_NOT_APPLICABLE:
+		case WC_Coupon::E_WC_COUPON_EXCLUDED_PRODUCTS:
+		case WC_Coupon::E_WC_COUPON_EXCLUDED_CATEGORIES:
+		case WC_Coupon::E_WC_COUPON_NOT_VALID_SALE_ITEMS:
+			return sprintf( 'Le code « %s » n’est valable pour aucun produit de votre panier.', $code );
+		case WC_Coupon::E_WC_COUPON_ALREADY_APPLIED:
+			return sprintf( 'Le code « %s » est déjà appliqué à votre panier.', $code );
+		case WC_Coupon::E_WC_COUPON_PLEASE_ENTER:
+			return 'Saisissez un code promo.';
+	}
+	return $err;
+}, 10, 3 );
+
+/* Messages de confirmation */
+add_filter( 'woocommerce_coupon_message', function ( $msg, $msg_code, $coupon ) {
+	$code = $coupon instanceof WC_Coupon ? strtoupper( $coupon->get_code() ) : '';
+	if ( WC_Coupon::WC_COUPON_SUCCESS === $msg_code ) {
+		return sprintf( 'Le code « %s » est appliqué à votre panier.', $code );
+	}
+	if ( WC_Coupon::WC_COUPON_REMOVED === $msg_code ) {
+		return sprintf( 'Le code « %s » a été retiré.', $code );
+	}
+	return $msg;
+}, 10, 3 );
+
+/* Retrait d'un code (lien « Retirer », traité en AJAX par WooCommerce) */
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	if ( 'woocommerce' === $domain && 'Coupon has been removed.' === $text ) {
+		return 'Le code promo a été retiré.';
+	}
+	return $translation;
+}, 20, 3 );

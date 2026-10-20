@@ -3341,3 +3341,94 @@ p.no-comments {
 .woocommerce-account.logged-in .woocommerce > .woocommerce-error {
   grid-column: 1 / -1;
 }
+
+/* ==========================================================================
+   Promotions : code promo (itération 10)
+   ========================================================================== */
+.cz-coupon {
+  margin: 28px 0 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.cz-coupon label {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.cz-coupon-field {
+  display: flex;
+  gap: 8px;
+}
+
+.cz-coupon-field input.input-text {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 20px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+  box-shadow: none;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.cz-coupon-field input.input-text::placeholder {
+  text-transform: none;
+}
+
+.cz-coupon-field input.input-text:focus {
+  border-color: var(--cz-noir);
+  outline: none;
+}
+
+.cz-coupon-field .cz-btn {
+  flex: none;
+  height: 46px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--cz-pill);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Ligne de réduction (panier et validation) */
+.cart-discount th,
+.cart-discount dt {
+  font-weight: 400;
+}
+
+.cz-coupon-code {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 10px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.cart-discount td,
+.cart-discount dd {
+  white-space: nowrap;
+}
+
+.cart-discount .woocommerce-remove-coupon {
+  margin-left: 8px;
+  color: var(--cz-noir);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+/* Confirmation de commande */
+.cz-row-discount dd {
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .cz-coupon-field .cz-btn {
+    padding: 0 16px;
+  }
+}
