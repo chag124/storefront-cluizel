@@ -3197,3 +3197,75 @@ body.woocommerce-cart .cart_totals table.shop_table td::before {
     padding: 28px 16px;
   }
 }
+
+/* ==========================================================================
+   Paiement à distance : virement bancaire, PayPal ou Wero (sous « Par virement »)
+   ========================================================================== */
+.cz-pay-options {
+  display: none;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0 0 0 30px;
+  border: 0;
+  background: none !important;
+}
+
+.woocommerce-checkout #payment.cz-payment ul.payment_methods li:has(> input:checked) > .cz-pay-options {
+  display: grid;
+}
+
+.cz-pay-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #d8d2ca;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-blanc);
+  cursor: pointer;
+}
+
+.cz-pay-option:has(input:checked) {
+  border-color: var(--cz-noir);
+}
+
+.cz-pay-option input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--cz-noir);
+}
+
+.cz-pay-option-title {
+  display: block;
+  font-size: 14px;
+}
+
+.cz-pay-option-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #5c5c5c;
+}
+
+/* Instructions PayPal / Wero sur la page de confirmation */
+.cz-alt-pay h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.cz-alt-pay p {
+  margin: 0 0 10px;
+}
+
+.cz-alt-pay .cz-btn {
+  border-radius: var(--cz-pill);
+}
+
+@media (max-width: 767px) {
+  .cz-pay-options {
+    padding-left: 0;
+  }
+}

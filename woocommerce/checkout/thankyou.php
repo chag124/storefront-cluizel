@@ -44,7 +44,7 @@ defined( 'ABSPATH' ) || exit;
 				$intro = 'Un e-mail récapitulatif vient de vous être envoyé. Nous préparons votre commande, elle vous sera expédiée à l’adresse indiquée.';
 			}
 			if ( 'bacs' === $order->get_payment_method() && ! $order->is_paid() ) {
-				$intro .= ' Elle sera préparée dès réception de votre virement.';
+				$intro .= ' Elle sera préparée dès réception de votre paiement.';
 			}
 
 			$shipping_cost = (float) $order->get_shipping_total();

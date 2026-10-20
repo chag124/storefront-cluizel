@@ -20,6 +20,13 @@ defined( 'ABSPATH' ) || exit;
 		<?php endif; ?>
 	</label>
 
+	<?php
+	/* Par virement : le client choisit comment il paie (virement bancaire, PayPal, Wero) */
+	if ( 'bacs' === $gateway->id ) {
+		cz_bacs_options_field();
+	}
+	?>
+
 	<?php if ( $gateway->has_fields() ) : ?>
 		<div class="payment_box payment_method_<?php echo esc_attr( $gateway->id ); ?>" <?php if ( ! $gateway->chosen ) : ?>style="display:none;"<?php endif; ?>>
 			<?php $gateway->payment_fields(); ?>
