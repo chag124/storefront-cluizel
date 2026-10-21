@@ -2902,3 +2902,134 @@ add_filter( 'gettext', function ( $translation, $text, $domain ) {
 	);
 	return $map[ $text ] ?? $translation;
 }, 20, 3 );
+
+/* =========================================================================
+ * 25. Frais de préparation (itération 15)
+ *     Si le montant des articles est inférieur au seuil, des frais fixes
+ *     s'ajoutent au panier. Réglages : WooCommerce › Frais de préparation.
+ * ====================================================================== */
+
+function cz_prep_fee_defaults() {
+	return array(
+		'enabled'   => 'yes',
+		'label'     => 'Frais de préparation',
+		'amount'    => '2.50',
+		'threshold' => '25',
+	);
+}
+
+function cz_prep_fee_settings() {
+	$saved = (array) get_option( 'cz_prep_fee', array() );
+	return wp_parse_args( $saved, cz_prep_fee_defaults() );
+}
+
+/* Montant pris en compte : articles TTC après codes promo, hors livraison */
+function cz_prep_fee_basis( $cart ) {
+	return (float) $cart->get_cart_contents_total() + (float) $cart->get_cart_contents_tax();
+}
+
+/* Page de réglages */
+add_action( 'admin_menu', function () {
+	add_submenu_page( 'woocommerce', 'Frais de préparation', 'Frais de préparation', 'manage_woocommerce', 'cz-frais', 'cz_prep_fee_page' );
+}, 62 );
+
+add_action( 'admin_init', function () {
+	register_setting(
+		'cz_prep_fee',
+		'cz_prep_fee',
+		array(
+			'type'              => 'array',
+			'sanitize_callback' => function ( $input ) {
+				$input = (array) $input;
+				$num   = fn( $v ) => max( 0, (float) str_replace( ',', '.', (string) $v ) );
+				return array(
+					'enabled'   => empty( $input['enabled'] ) ? 'no' : 'yes',
+					'label'     => sanitize_text_field( $input['label'] ?? '' ) ?: 'Frais de préparation',
+					'amount'    => wc_format_decimal( $num( $input['amount'] ?? 0 ), 2 ),
+					'threshold' => wc_format_decimal( $num( $input['threshold'] ?? 0 ), 2 ),
+				);
+			},
+		)
+	);
+} );
+
+add_filter( 'option_page_capability_cz_prep_fee', fn() => 'manage_woocommerce' );
+
+function cz_prep_fee_page() {
+	$s = cz_prep_fee_settings();
+	?>
+	<div class="wrap">
+		<h1>Frais de préparation</h1>
+		<p>Des frais fixes s’ajoutent automatiquement au panier quand le montant des articles (TTC, après codes promo, hors livraison) est <strong>inférieur au seuil</strong>. Ils disparaissent dès que le seuil est atteint.</p>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'cz_prep_fee' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row">Activer</th>
+					<td><label><input type="checkbox" name="cz_prep_fee[enabled]" value="yes" <?php checked( 'yes', $s['enabled'] ); ?>> Appliquer les frais de préparation</label></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-fee-label">Libellé</label></th>
+					<td><input type="text" id="cz-fee-label" name="cz_prep_fee[label]" value="<?php echo esc_attr( $s['label'] ); ?>" class="regular-text"><p class="description">Affiché dans le panier, la commande et les e-mails.</p></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-fee-amount">Montant des frais (€)</label></th>
+					<td><input type="number" id="cz-fee-amount" name="cz_prep_fee[amount]" value="<?php echo esc_attr( $s['amount'] ); ?>" min="0" step="0.01" class="small-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-fee-threshold">Seuil (€)</label></th>
+					<td><input type="number" id="cz-fee-threshold" name="cz_prep_fee[threshold]" value="<?php echo esc_attr( $s['threshold'] ); ?>" min="0" step="0.01" class="small-text"><p class="description">Les frais s’appliquent si le montant des articles est strictement inférieur à ce seuil.</p></td>
+				</tr>
+			</table>
+			<?php submit_button( 'Enregistrer' ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/* Calcul : à chaque mise à jour du panier, les frais sont ajoutés ou non */
+add_action( 'woocommerce_cart_calculate_fees', function ( $cart ) {
+	if ( is_admin() && ! wp_doing_ajax() ) {
+		return;
+	}
+	$s = cz_prep_fee_settings();
+	if ( 'yes' !== $s['enabled'] || (float) $s['amount'] <= 0 || $cart->is_empty() ) {
+		return;
+	}
+	if ( cz_prep_fee_basis( $cart ) < (float) $s['threshold'] ) {
+		$cart->add_fee( $s['label'], (float) $s['amount'], false );
+	}
+} );
+
+/* Message sous les totaux : combien il manque, ou frais offerts */
+function cz_prep_fee_hint_html() {
+	$cart = WC()->cart;
+	$s    = cz_prep_fee_settings();
+	if ( ! $cart || $cart->is_empty() || 'yes' !== $s['enabled'] || (float) $s['amount'] <= 0 ) {
+		return '';
+	}
+	$missing = (float) $s['threshold'] - cz_prep_fee_basis( $cart );
+	if ( $missing > 0 ) {
+		return sprintf(
+			'Plus que <strong>%1$s</strong> d’achats pour ne plus payer les %2$s (%3$s).',
+			wc_price( $missing ),
+			esc_html( mb_strtolower( $s['label'] ) ),
+			wc_price( (float) $s['amount'] )
+		);
+	}
+	return esc_html( $s['label'] ) . ' offerts à partir de ' . wc_price( (float) $s['threshold'] ) . ' d’achats.';
+}
+
+add_action( 'woocommerce_cart_totals_after_order_total', function () {
+	$html = cz_prep_fee_hint_html();
+	if ( $html ) {
+		echo '<tr class="cz-fee-hint"><td colspan="2">' . wp_kses_post( $html ) . '</td></tr>';
+	}
+} );
+
+add_action( 'woocommerce_review_order_after_order_total', function () {
+	$html = cz_prep_fee_hint_html();
+	if ( $html ) {
+		echo '<div class="cz-row cz-fee-hint"><dd>' . wp_kses_post( $html ) . '</dd></div>';
+	}
+} );
