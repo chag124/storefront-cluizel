@@ -2783,3 +2783,122 @@ add_action( 'woocommerce_after_single_product_summary', function () {
 		)
 	);
 }, 20 );
+
+/* =========================================================================
+ * 24. Avis clients (itération 14)
+ *     Gabarit : woocommerce/single-product-reviews.php
+ *     Section « Avis clients » sous la fiche produit, note moyenne sous le
+ *     titre, avis réservés aux clients qui ont acheté le produit.
+ * ====================================================================== */
+
+/* Une commande « Prête à retirer » est payée ou en passe de l'être :
+   elle compte comme un achat (pour les avis « Achat vérifié ») */
+add_filter( 'woocommerce_order_is_paid_statuses', function ( $statuses ) {
+	$statuses[] = 'ready-pickup';
+	return array_unique( $statuses );
+} );
+
+/* Le client connecté peut-il laisser un avis sur ce produit ? */
+function cz_customer_can_review( $product ) {
+	if ( ! is_user_logged_in() || ! $product instanceof WC_Product || ! comments_open( $product->get_id() ) ) {
+		return false;
+	}
+	if ( 'yes' !== get_option( 'woocommerce_review_rating_verification_required' ) ) {
+		return true;
+	}
+	return wc_customer_bought_product( '', get_current_user_id(), $product->get_id() );
+}
+
+/* Sécurité : refus côté serveur si le client n'a pas acheté le produit */
+add_filter( 'preprocess_comment', function ( $data ) {
+	$post_id = isset( $data['comment_post_ID'] ) ? (int) $data['comment_post_ID'] : 0;
+	if ( 'product' !== get_post_type( $post_id ) || ( isset( $data['comment_type'] ) && 'review' !== $data['comment_type'] && '' !== $data['comment_type'] && 'comment' !== $data['comment_type'] ) ) {
+		return $data;
+	}
+	if ( is_admin() && current_user_can( 'moderate_comments' ) ) {
+		return $data; /* réponse de la boutique depuis l'admin */
+	}
+	if ( ! cz_customer_can_review( wc_get_product( $post_id ) ) ) {
+		wp_die(
+			esc_html( 'Seuls les clients connectés ayant acheté ce produit peuvent laisser un avis.' ),
+			esc_html( 'Avis non autorisé' ),
+			array( 'response' => 403, 'back_link' => true )
+		);
+	}
+	return $data;
+}, 5 );
+
+/* Étoiles (note sur 5, demi-étoiles possibles) */
+function cz_stars_html( $rating ) {
+	$rating = max( 0, min( 5, (float) $rating ) );
+	$label  = sprintf( 'Note : %s sur 5', number_format_i18n( $rating, 1 ) );
+	return '<span class="cz-stars" role="img" aria-label="' . esc_attr( $label ) . '"><span class="cz-stars-fill" style="width:' . esc_attr( $rating / 5 * 100 ) . '%"></span></span>';
+}
+
+/* Un avis de la liste */
+function cz_review_item( $comment, $args, $depth ) {
+	$rating   = (int) get_comment_meta( $comment->comment_ID, 'rating', true );
+	$verified = function_exists( 'wc_review_is_from_verified_owner' ) && wc_review_is_from_verified_owner( $comment->comment_ID );
+	$is_shop  = user_can( (int) $comment->user_id, 'manage_woocommerce' );
+	$name     = get_comment_author( $comment );
+	?>
+	<li <?php comment_class( 'cz-review' . ( $depth > 1 ? ' cz-review-reply' : '' ), $comment ); ?> id="li-comment-<?php comment_ID(); ?>">
+		<article id="comment-<?php comment_ID(); ?>" class="cz-review-card">
+			<header class="cz-review-head">
+				<span class="cz-review-avatar" aria-hidden="true"><?php echo esc_html( mb_strtoupper( mb_substr( $name, 0, 1 ) ) ); ?></span>
+				<span class="cz-review-who">
+					<span class="cz-review-author"><?php echo esc_html( $is_shop ? 'Cluizel Paris' : $name ); ?></span>
+					<time class="cz-review-date" datetime="<?php echo esc_attr( get_comment_date( 'c', $comment ) ); ?>"><?php echo esc_html( get_comment_date( 'j F Y', $comment ) ); ?></time>
+				</span>
+				<?php if ( $verified && ! $is_shop ) : ?>
+					<span class="cz-review-verified">Achat vérifié</span>
+				<?php elseif ( $is_shop ) : ?>
+					<span class="cz-review-verified">Réponse de la boutique</span>
+				<?php endif; ?>
+			</header>
+			<?php if ( $rating && 1 === (int) $depth ) : ?>
+				<?php echo cz_stars_html( $rating ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php endif; ?>
+			<?php if ( '0' === (string) $comment->comment_approved ) : ?>
+				<p class="cz-review-pending">Votre avis est en attente de validation. Merci !</p>
+			<?php endif; ?>
+			<div class="cz-review-text"><?php comment_text( $comment ); ?></div>
+		</article>
+	<?php
+	/* La balise </li> est fermée par WordPress */
+}
+
+/* Section « Avis clients » sous la fiche, avant « Pour compléter votre commande » */
+add_action( 'woocommerce_after_single_product_summary', function () {
+	if ( comments_open() ) {
+		comments_template();
+	}
+}, 15 );
+
+/* Sous le titre : étoiles, note et lien vers les avis */
+add_action( 'woocommerce_single_product_summary', function () {
+	global $product;
+	if ( ! $product instanceof WC_Product || 'no' === get_option( 'woocommerce_enable_reviews' ) || ! comments_open() ) {
+		return;
+	}
+	$count = (int) $product->get_review_count();
+	echo '<p class="cz-product-rating">';
+	if ( $count ) {
+		echo cz_stars_html( $product->get_average_rating() ); // phpcs:ignore WordPress.Security.EscapeOutput
+		echo ' <span>' . esc_html( number_format_i18n( (float) $product->get_average_rating(), 1 ) ) . '</span>';
+		echo ' <a href="#reviews">' . esc_html( $count . ' avis' ) . '</a>';
+	} else {
+		echo '<a href="#reviews">Aucun avis – donnez le vôtre</a>';
+	}
+	echo '</p>';
+}, 6 );
+
+/* Messages de WooCommerce et WordPress pour les avis */
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	$map = array(
+		'Please select a rating'          => 'Veuillez choisir une note (de 1 à 5 étoiles).',
+		'Please type your comment text.'  => 'Écrivez quelques mots pour votre avis.',
+		'Duplicate comment detected; it looks as though you&#8217;ve already said that!' => 'Vous avez déjà publié cet avis.',
+	);
+	return $map[ $text ] ?? $translation;
+}, 20, 3 );

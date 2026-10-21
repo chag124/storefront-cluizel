@@ -3911,3 +3911,470 @@ p.no-comments {
 .cz-member-card > a:hover .cz-member-name {
   text-decoration: underline !important;
 }
+
+/* ==========================================================================
+   Avis clients (itération 14)
+   ========================================================================== */
+
+/* Étoiles : 5 étoiles grises, remplies en noir selon la note */
+.cz-stars {
+  position: relative;
+  display: inline-block;
+  color: #d8d2ca;
+  font-size: 16px;
+  letter-spacing: 2px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.cz-stars::before {
+  content: "★★★★★";
+}
+
+.cz-stars-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  color: var(--cz-noir);
+  white-space: nowrap;
+}
+
+.cz-stars-fill::before {
+  content: "★★★★★";
+}
+
+/* Sous le titre de la fiche */
+.cz-product-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 20px;
+  font-size: 14px;
+}
+
+.cz-product-rating a {
+  color: var(--cz-noir);
+  text-decoration: underline;
+}
+
+/* Section */
+.cz-reviews {
+  margin: 0 0 90px;
+  padding-top: 70px;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  clear: both;
+}
+
+.cz-reviews-title {
+  margin: 0 0 40px;
+  font-family: var(--cz-font-titre);
+  font-size: 36px;
+  font-weight: 400;
+}
+
+.cz-reviews-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+  gap: 60px;
+}
+
+/* Résumé à gauche */
+.cz-reviews-summary {
+  position: sticky;
+  top: 24px;
+  padding: 30px 25px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+}
+
+.cz-reviews-average {
+  margin: 0 0 6px;
+  font-family: var(--cz-font-titre);
+  line-height: 1;
+}
+
+.cz-reviews-score {
+  font-size: 56px;
+  font-weight: 300;
+}
+
+.cz-reviews-outof {
+  font-size: 20px;
+}
+
+.cz-reviews-summary .cz-stars {
+  font-size: 20px;
+}
+
+.cz-reviews-count {
+  margin: 8px 0 24px;
+  font-size: 14px;
+}
+
+.cz-reviews-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.cz-reviews-bars li {
+  display: grid;
+  grid-template-columns: 34px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.cz-reviews-bar {
+  overflow: hidden;
+  height: 8px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+}
+
+.cz-reviews-bar span {
+  display: block;
+  height: 100%;
+  background: var(--cz-noir);
+}
+
+.cz-reviews-bar-count {
+  text-align: right;
+}
+
+.cz-reviews-empty-title {
+  margin: 0 0 20px;
+  font-family: var(--cz-font-titre);
+  font-size: 20px;
+}
+
+.cz-reviews-summary .cz-btn {
+  display: block;
+  border-radius: var(--cz-pill);
+  text-align: center;
+}
+
+.cz-reviews-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cz-reviews-note a {
+  color: var(--cz-noir);
+  text-decoration: underline;
+}
+
+/* Liste des avis */
+.cz-reviews-list,
+.cz-reviews-list .children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cz-reviews-list > li + li {
+  margin-top: 20px;
+}
+
+.cz-reviews-list .children {
+  margin: 12px 0 0 40px;
+}
+
+.cz-review-card {
+  padding: 24px 25px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+}
+
+.cz-review-reply .cz-review-card {
+  background: var(--cz-beige-clair);
+}
+
+.cz-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cz-review-avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+  font-family: var(--cz-font-titre);
+  font-size: 16px;
+}
+
+.cz-review-who {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+}
+
+.cz-review-author {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.cz-review-date {
+  font-size: 12px;
+}
+
+.cz-review-verified {
+  padding: 4px 12px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+  font-size: 11px;
+}
+
+.cz-review-card .cz-stars {
+  margin-bottom: 10px;
+}
+
+.cz-review-text {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.cz-review-text p:last-child {
+  margin-bottom: 0;
+}
+
+.cz-review-pending {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.cz-reviews-pagination ul {
+  display: flex;
+  gap: 8px;
+  margin: 24px 0 0;
+  list-style: none;
+}
+
+.cz-reviews-pagination a,
+.cz-reviews-pagination span {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-reviews-pagination .current {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+/* Formulaire */
+.cz-review-form {
+  margin-top: 40px;
+  padding: 30px 25px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-radius);
+  scroll-margin-top: 24px;
+}
+
+.cz-review-form-title {
+  margin: 0 0 8px;
+  font-family: var(--cz-font-titre);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.cz-review-form-title small {
+  display: block;
+  font-size: 13px;
+}
+
+.cz-review-form-as {
+  margin: 0 0 20px;
+  font-size: 14px;
+}
+
+.cz-rating-input {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.cz-rating-input legend {
+  margin: 0 0 6px;
+  padding: 0;
+  font-size: 15px;
+}
+
+/* Étoiles cliquables : de 5 à 1 dans le code, affichées de 1 à 5 */
+.cz-rating-stars {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 4px;
+}
+
+.cz-rating-stars input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cz-rating-stars label {
+  color: #d8d2ca;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.cz-rating-stars label:hover,
+.cz-rating-stars label:hover ~ label,
+.cz-rating-stars input:checked ~ label {
+  color: var(--cz-noir);
+}
+
+.cz-rating-stars input:focus-visible + label {
+  outline: 2px solid var(--cz-noir);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cz-review-form .comment-form-comment label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.cz-review-form textarea {
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-blanc);
+  box-shadow: none;
+  font-family: var(--cz-font-texte);
+  font-size: 15px;
+}
+
+.cz-review-form textarea:focus {
+  border-color: var(--cz-noir);
+  outline: none;
+}
+
+.cz-review-form .form-submit {
+  margin: 20px 0 0;
+}
+
+.cz-review-form .form-submit .cz-btn {
+  padding: 12px 30px;
+  border: 0;
+  border-radius: var(--cz-pill);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+#cancel-comment-reply-link {
+  margin-left: 10px;
+  color: var(--cz-noir);
+  font-size: 13px;
+}
+
+/* Tablette et mobile */
+@media (max-width: 991px) {
+  .cz-reviews-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .cz-reviews-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .cz-reviews {
+    margin-bottom: 60px;
+    padding-top: 48px;
+  }
+
+  .cz-reviews-title {
+    margin-bottom: 24px;
+    font-size: 28px;
+  }
+
+  .cz-review-card,
+  .cz-review-form,
+  .cz-reviews-summary {
+    padding: 20px 16px;
+  }
+
+  .cz-reviews-list .children {
+    margin-left: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cz-rating-stars label {
+    transition: none;
+  }
+}
+
+/* La section des avis prend toute la largeur de la fiche (sous la photo et le résumé) */
+.single-product div.product .cz-reviews,
+.single-product div.product #reviews {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 100px;
+}
+
+/* Formulaire d'avis : sans le cadre gris de Storefront, bouton noir */
+.cz-review-form #respond {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none !important;
+}
+
+.cz-review-form #respond .comment-form-comment,
+.cz-review-form #respond .form-submit {
+  width: 100%;
+}
+
+.cz-review-form input[type="submit"].cz-btn,
+.cz-review-form .form-submit input#submit {
+  padding: 12px 30px !important;
+  border: 0 !important;
+  border-radius: var(--cz-pill) !important;
+  background: var(--cz-noir) !important;
+  color: var(--cz-blanc) !important;
+  font-family: var(--cz-font-texte);
+  font-size: 15px !important;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.cz-review-form input[type="submit"].cz-btn:hover {
+  opacity: 0.85;
+}
+
+.cz-review-form .cz-rating-input legend {
+  font-weight: 400;
+}
