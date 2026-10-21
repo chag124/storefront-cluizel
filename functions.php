@@ -287,6 +287,7 @@ function cz_catalogue_categories() {
 		array(
 			'taxonomy'   => 'product_cat',
 			'hide_empty' => true,
+			'orderby'    => 'menu_order', /* ordre choisi par glisser-déposer dans Produits › Catégories */
 			'exclude'    => array( (int) get_option( 'default_product_cat' ) ),
 		)
 	);
@@ -3033,3 +3034,172 @@ add_action( 'woocommerce_review_order_after_order_total', function () {
 		echo '<div class="cz-row cz-fee-hint"><dd>' . wp_kses_post( $html ) . '</dd></div>';
 	}
 } );
+
+/* =========================================================================
+ * 26. Page d'accueil : les 3 derniers produits (itération 16)
+ *     Code court [cz_nouveautes] à placer dans la page d'accueil.
+ *     Options : nombre="3" titre="Nouveautés" texte="…" bouton="" (vide = pas de bouton)
+ *     Les produits sont lus à chaque affichage : un nouveau produit publié
+ *     apparaît tout seul, sans toucher à la page.
+ * ====================================================================== */
+
+add_shortcode( 'cz_nouveautes', function ( $atts ) {
+	if ( ! function_exists( 'wc_get_products' ) ) {
+		return '';
+	}
+	$atts = shortcode_atts(
+		array(
+			'nombre' => 3,
+			'titre'  => 'Nouveautés',
+			'texte'  => 'Les dernières créations de nos chocolatiers, tout juste arrivées à la carte.',
+			'bouton' => '', /* pas de bouton (choix de la maquette) ; ex. bouton="Voir la carte" pour l'afficher */
+		),
+		$atts,
+		'cz_nouveautes'
+	);
+
+	$products = wc_get_products(
+		array(
+			'status'     => 'publish',
+			'visibility' => 'catalog',
+			'limit'      => max( 1, min( 12, (int) $atts['nombre'] ) ),
+			'orderby'    => 'date',
+			'order'      => 'DESC',
+		)
+	);
+	if ( ! $products ) {
+		return '';
+	}
+
+	ob_start();
+	?>
+	<section class="cz-new" aria-labelledby="cz-new-title">
+		<div class="cz-new-head">
+			<div>
+				<h2 id="cz-new-title" class="cz-new-title"><?php echo esc_html( $atts['titre'] ); ?></h2>
+				<?php if ( $atts['texte'] ) : ?>
+					<p class="cz-new-text"><?php echo esc_html( $atts['texte'] ); ?></p>
+				<?php endif; ?>
+			</div>
+			<?php if ( $atts['bouton'] ) : ?>
+				<a class="cz-btn cz-new-all" href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>"><?php echo esc_html( $atts['bouton'] ); ?></a>
+			<?php endif; ?>
+		</div>
+		<?php
+		wc_setup_loop(
+			array(
+				'name'    => 'cz_new',
+				'columns' => 3,
+			)
+		);
+		echo '<ul class="products columns-3 cz-new-grid">';
+		foreach ( $products as $product ) {
+			$post_object = get_post( $product->get_id() );
+			setup_postdata( $GLOBALS['post'] = $post_object ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			wc_get_template_part( 'content', 'product' );
+		}
+		echo '</ul>';
+		wp_reset_postdata();
+		wc_reset_loop();
+		?>
+	</section>
+	<?php
+	return ob_get_clean();
+} );
+
+/* Pastille « Nouveau » sur les cartes de cette section */
+add_action( 'woocommerce_before_shop_loop_item', function () {
+	if ( 'cz_new' === wc_get_loop_prop( 'name' ) ) {
+		echo '<span class="cz-new-badge">Nouveau</span>';
+	}
+}, 5 );
+
+/* =========================================================================
+ * 27. Page d'accueil (maquette « Accueil », itération 16)
+ *     Gabarit : front-page.php (utilisé pour la page d'accueil statique).
+ *     Textes réglables dans la page d'accueil (cadre « Page d'accueil »),
+ *     visuel = image mise en avant de la page, univers = catégories de produits.
+ * ====================================================================== */
+
+function cz_home_defaults() {
+	return array(
+		'cz_hero_titre'  => 'Des gourmandises artisanales à retirer en boutique',
+		'cz_hero_texte'  => 'Chocolatier depuis 1948, ingrédients nobles. Composez votre commande en ligne, récupérez-la sur place sans attendre',
+		'cz_hero_bouton' => 'Voir la carte',
+		'cz_etape1_titre' => 'Je compose mon panier',
+		'cz_etape1_texte' => 'Je choisis mes produits et leurs options : format, garniture, emballage.',
+		'cz_etape2_titre' => 'Je valide ma commande',
+		'cz_etape2_texte' => 'Je paie par virement ou au retrait et je reçois un e-mail de confirmation.',
+		'cz_etape3_titre' => 'Je retire en boutique',
+		'cz_etape3_texte' => 'Je viens récupérer ma commande sur place, gratuitement.',
+	);
+}
+
+/* Texte de la page d'accueil (valeur saisie, sinon celle de la maquette) */
+function cz_home_text( $name ) {
+	$id    = (int) get_option( 'page_on_front' );
+	$value = $id ? ( function_exists( 'get_field' ) ? get_field( $name, $id ) : get_post_meta( $id, $name, true ) ) : '';
+	$value = is_string( $value ) ? trim( $value ) : '';
+	return '' !== $value ? $value : ( cz_home_defaults()[ $name ] ?? '' );
+}
+
+/* Champs de la page d'accueil (Secure Custom Fields) */
+add_action( 'acf/init', function () {
+	if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+		return;
+	}
+	$d      = cz_home_defaults();
+	$fields = array(
+		array( 'key' => 'field_cz_tab_hero', 'label' => 'Bandeau d’accueil', 'type' => 'tab' ),
+		array( 'key' => 'field_cz_hero_titre', 'label' => 'Titre', 'name' => 'cz_hero_titre', 'type' => 'text', 'placeholder' => $d['cz_hero_titre'] ),
+		array( 'key' => 'field_cz_hero_texte', 'label' => 'Texte', 'name' => 'cz_hero_texte', 'type' => 'textarea', 'rows' => 2, 'placeholder' => $d['cz_hero_texte'] ),
+		array( 'key' => 'field_cz_hero_bouton', 'label' => 'Texte du bouton', 'name' => 'cz_hero_bouton', 'type' => 'text', 'placeholder' => $d['cz_hero_bouton'], 'instructions' => 'Le visuel est l’image mise en avant de la page (colonne de droite).' ),
+		array( 'key' => 'field_cz_tab_etapes', 'label' => 'Comment ça marche ?', 'type' => 'tab' ),
+	);
+	for ( $i = 1; $i <= 3; $i++ ) {
+		$fields[] = array( 'key' => "field_cz_etape{$i}_titre", 'label' => "Étape $i – titre", 'name' => "cz_etape{$i}_titre", 'type' => 'text', 'placeholder' => $d[ "cz_etape{$i}_titre" ], 'wrapper' => array( 'width' => 40 ) );
+		$fields[] = array( 'key' => "field_cz_etape{$i}_texte", 'label' => "Étape $i – texte", 'name' => "cz_etape{$i}_texte", 'type' => 'text', 'placeholder' => $d[ "cz_etape{$i}_texte" ], 'wrapper' => array( 'width' => 60 ) );
+	}
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_cz_home',
+			'title'    => 'Page d’accueil',
+			'fields'   => $fields,
+			'position' => 'acf_after_title',
+			'location' => array(
+				array(
+					array(
+						'param'    => 'page_type',
+						'operator' => '==',
+						'value'    => 'front_page',
+					),
+				),
+			),
+			'instructions' => 'Laisser un champ vide pour garder le texte de la maquette.',
+		)
+	);
+} );
+
+/* Image d'une catégorie : sa miniature, sinon l'image d'un de ses produits */
+function cz_category_image_id( $term ) {
+	$id = (int) get_term_meta( $term->term_id, 'thumbnail_id', true );
+	if ( ! $id ) {
+		$ids = wc_get_products(
+			array(
+				'status'   => 'publish',
+				'limit'    => 1,
+				'category' => array( $term->slug ),
+				'return'   => 'ids',
+			)
+		);
+		$id  = $ids ? (int) get_post_thumbnail_id( $ids[0] ) : 0;
+	}
+	return $id;
+}
+
+/* Pas de fil d'Ariane sur l'accueil */
+add_action( 'wp', function () {
+	if ( is_front_page() ) {
+		remove_action( 'storefront_before_content', 'woocommerce_breadcrumb', 10 );
+	}
+}, 20 );
