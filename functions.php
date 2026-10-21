@@ -310,9 +310,11 @@ add_action( 'storefront_before_content', function () {
 	if ( ! cz_is_catalogue() ) {
 		return;
 	}
-	$current = is_product_category() ? get_queried_object_id() : 0;
-	echo '<div class="col-full"><nav class="cz-cat-bar" aria-label="Catégories"><ul>';
-	foreach ( cz_catalogue_categories() as $cat ) {
+	$is_collection = is_tax( 'cz_collection' );
+	$current       = ( is_product_category() || $is_collection ) ? get_queried_object_id() : 0;
+	$terms         = $is_collection ? cz_collections() : cz_catalogue_categories();
+	echo '<div class="col-full"><nav class="cz-cat-bar" aria-label="' . ( $is_collection ? 'Collections' : 'Catégories' ) . '"><ul>';
+	foreach ( $terms as $cat ) {
 		$active = $cat->term_id === $current;
 		printf(
 			'<li%s><a href="%s"%s>%s</a></li>',
@@ -362,6 +364,23 @@ function cz_catalogue_sidebar() {
 				</li>
 			<?php endforeach; ?>
 		</ul>
+		<?php
+		$collections = cz_collections();
+		$current_col = is_tax( 'cz_collection' ) ? get_queried_object_id() : 0;
+		if ( $collections ) :
+			?>
+			<p class="cz-sidebar-title cz-sidebar-title--line">Collections</p>
+			<ul class="cz-cat-list">
+				<?php foreach ( $collections as $col ) : ?>
+					<li class="<?php echo $col->term_id === $current_col ? 'is-active' : ''; ?>">
+						<a href="<?php echo esc_url( get_term_link( $col ) ); ?>">
+							<span><?php echo esc_html( $col->name ); ?></span>
+							<span><?php echo (int) $col->count; ?></span>
+						</a>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
 		<?php $range = cz_price_range(); ?>
 		<?php if ( $range ) : ?>
 			<p class="cz-sidebar-title">Prix</p>
@@ -2480,3 +2499,203 @@ function cz_member_card( $post_id ) {
 	</li>
 	<?php
 }
+
+/* =========================================================================
+ * 22. Taxonomie « Collections » (itération 12)
+ *     Nouveau classement des produits, indépendant des catégories.
+ *     Back office : Produits › Collections. Page dédiée : /collection/nom/
+ *     (même grille que la carte). Page « Nos collections » : code court
+ *     [cz_collections].
+ * ====================================================================== */
+
+add_action( 'init', function () {
+	register_taxonomy(
+		'cz_collection',
+		array( 'product' ),
+		array(
+			'labels'            => array(
+				'name'                       => 'Collections',
+				'singular_name'              => 'Collection',
+				'menu_name'                  => 'Collections',
+				'all_items'                  => 'Toutes les collections',
+				'edit_item'                  => 'Modifier la collection',
+				'view_item'                  => 'Voir la collection',
+				'update_item'                => 'Mettre à jour la collection',
+				'add_new_item'               => 'Ajouter une collection',
+				'new_item_name'              => 'Nom de la nouvelle collection',
+				'search_items'               => 'Rechercher une collection',
+				'not_found'                  => 'Aucune collection',
+				'back_to_items'              => '← Retour aux collections',
+				'parent_item'                => 'Collection parente',
+				'parent_item_colon'          => 'Collection parente :',
+			),
+			'public'            => true,
+			'hierarchical'      => true, /* cases à cocher dans la fiche produit */
+			'show_admin_column' => true, /* colonne dans la liste des produits */
+			'show_in_quick_edit'=> true,
+			'show_in_nav_menus' => true,
+			'show_in_rest'      => true,
+			'rewrite'           => array(
+				'slug'       => 'collection',
+				'with_front' => false,
+			),
+		)
+	);
+}, 5 );
+
+/* Collections non vides, dans l'ordre alphabétique */
+function cz_collections() {
+	$terms = get_terms(
+		array(
+			'taxonomy'   => 'cz_collection',
+			'hide_empty' => true,
+		)
+	);
+	return is_wp_error( $terms ) ? array() : $terms;
+}
+
+/* Image de la collection (Secure Custom Fields) */
+add_action( 'acf/init', function () {
+	if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+		return;
+	}
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_cz_collection',
+			'title'    => 'Collection',
+			'fields'   => array(
+				array(
+					'key'           => 'field_cz_collection_image',
+					'label'         => 'Image de la collection',
+					'name'          => 'cz_collection_image',
+					'type'          => 'image',
+					'return_format' => 'id',
+					'preview_size'  => 'medium',
+					'instructions'  => 'Affichée sur la page « Nos collections ».',
+				),
+			),
+			'location' => array(
+				array(
+					array(
+						'param'    => 'taxonomy',
+						'operator' => '==',
+						'value'    => 'cz_collection',
+					),
+				),
+			),
+		)
+	);
+} );
+
+function cz_collection_image_id( $term ) {
+	$id = function_exists( 'get_field' ) ? get_field( 'cz_collection_image', $term ) : get_term_meta( $term->term_id, 'cz_collection_image', true );
+	return (int) $id;
+}
+
+/* Liste des produits (admin) : filtre par collection */
+add_action( 'restrict_manage_posts', function ( $post_type ) {
+	if ( 'product' !== $post_type ) {
+		return;
+	}
+	wp_dropdown_categories(
+		array(
+			'taxonomy'        => 'cz_collection',
+			'name'            => 'cz_collection',
+			'value_field'     => 'slug',
+			'show_option_all' => 'Toutes les collections',
+			'selected'        => isset( $_GET['cz_collection'] ) ? sanitize_title( wp_unslash( $_GET['cz_collection'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification
+			'hide_empty'      => false,
+			'hierarchical'    => true,
+		)
+	);
+} );
+
+/* Page d'une collection : description sous le titre */
+add_action( 'storefront_before_content', function () {
+	if ( ! is_tax( 'cz_collection' ) ) {
+		return;
+	}
+	$term = get_queried_object();
+	if ( $term && $term->description ) {
+		echo '<div class="col-full"><div class="cz-collection-intro">' . wp_kses_post( wpautop( $term->description ) ) . '</div></div>';
+	}
+}, 20 );
+
+/* Fil d'Ariane : « Accueil / Nos collections / Nom » (lien vers la page qui contient [cz_collections]) */
+add_filter( 'woocommerce_get_breadcrumb', function ( $crumbs ) {
+	if ( ! is_tax( 'cz_collection' ) ) {
+		return $crumbs;
+	}
+	$page = cz_collections_page_url();
+	foreach ( $crumbs as $i => $crumb ) {
+		if ( 'Collections' === $crumb[0] ) {
+			$crumbs[ $i ] = array( 'Nos collections', $page );
+		}
+	}
+	return $crumbs;
+} );
+
+function cz_collections_page_url() {
+	$pages = get_posts(
+		array(
+			'post_type'      => 'page',
+			'post_status'    => 'publish',
+			's'              => '[cz_collections',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	return $pages ? get_permalink( $pages[0] ) : '';
+}
+
+/* Fiche produit : « Collection : … » sous le bouton d'ajout au panier */
+add_action( 'woocommerce_single_product_summary', function () {
+	$terms = get_the_terms( get_the_ID(), 'cz_collection' );
+	if ( ! $terms || is_wp_error( $terms ) ) {
+		return;
+	}
+	$links = array_map( fn( $t ) => '<a href="' . esc_url( get_term_link( $t ) ) . '">' . esc_html( $t->name ) . '</a>', $terms );
+	echo '<p class="cz-product-collection">' . ( count( $terms ) > 1 ? 'Collections : ' : 'Collection : ' ) . implode( ', ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput
+}, 35 );
+
+/* Code court [cz_collections] : cartes des collections (page « Nos collections ») */
+add_shortcode( 'cz_collections', function () {
+	$collections = cz_collections();
+	if ( ! $collections ) {
+		return '<p>Les collections seront bientôt présentées ici.</p>';
+	}
+	ob_start();
+	echo '<ul class="cz-collections">';
+	foreach ( $collections as $col ) {
+		$image_id = cz_collection_image_id( $col );
+		if ( ! $image_id ) {
+			/* Sans image : celle du premier produit de la collection */
+			$first    = get_posts(
+				array(
+					'post_type'      => 'product',
+					'posts_per_page' => 1,
+					'fields'         => 'ids',
+					'tax_query'      => array( array( 'taxonomy' => 'cz_collection', 'terms' => $col->term_id ) ), // phpcs:ignore WordPress.DB.SlowDBQuery
+				)
+			);
+			$image_id = $first ? (int) get_post_thumbnail_id( $first[0] ) : 0;
+		}
+		?>
+		<li class="cz-collection-card">
+			<a href="<?php echo esc_url( get_term_link( $col ) ); ?>">
+				<span class="cz-collection-image"><?php echo $image_id ? wp_get_attachment_image( $image_id, 'woocommerce_single', false, array( 'alt' => '' ) ) : ''; ?></span>
+				<span class="cz-collection-body">
+					<span class="cz-collection-name"><?php echo esc_html( $col->name ); ?></span>
+					<span class="cz-collection-count"><?php echo (int) $col->count; ?> <?php echo 1 < $col->count ? 'produits' : 'produit'; ?></span>
+					<?php if ( $col->description ) : ?>
+						<span class="cz-collection-desc"><?php echo esc_html( wp_trim_words( $col->description, 22 ) ); ?></span>
+					<?php endif; ?>
+					<span class="cz-btn-outline">Découvrir</span>
+				</span>
+			</a>
+		</li>
+		<?php
+	}
+	echo '</ul>';
+	return ob_get_clean();
+} );

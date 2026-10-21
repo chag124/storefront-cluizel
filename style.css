@@ -3735,3 +3735,179 @@ p.no-comments {
     transform: none;
   }
 }
+
+/* ==========================================================================
+   Collections (itération 12)
+   ========================================================================== */
+.cz-collection-intro {
+  max-width: 720px;
+  margin: -24px 0 40px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.cz-collection-intro p:last-child {
+  margin-bottom: 0;
+}
+
+.cz-product-collection {
+  margin: 20px 0 0;
+  font-size: 14px;
+}
+
+.cz-product-collection a {
+  color: var(--cz-noir);
+  text-decoration: underline;
+}
+
+/* Page « Nos collections » */
+.cz-collections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cz-collection-card {
+  display: flex;
+  margin: 0;
+}
+
+.cz-collection-card > a {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 20px 28px;
+  border-radius: var(--cz-radius);
+  background: var(--cz-beige);
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+.cz-collection-card > a:focus-visible {
+  outline: 2px solid var(--cz-noir);
+  outline-offset: 3px;
+}
+
+.cz-collection-image {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-blanc);
+}
+
+.cz-collection-image img {
+  width: auto;
+  max-width: 70%;
+  max-height: 85%;
+  margin: 0;
+  object-fit: contain;
+}
+
+.cz-collection-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding-top: 22px;
+}
+
+.cz-collection-name {
+  font-family: var(--cz-font-titre);
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.cz-collection-count {
+  font-size: 13px;
+}
+
+.cz-collection-desc {
+  margin-top: -8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cz-collection-body .cz-btn-outline {
+  margin-top: auto;
+}
+
+.cz-collection-count,
+.cz-collection-desc {
+  margin-bottom: 14px;
+}
+
+.cz-collection-card > a:hover .cz-btn-outline {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+@media (max-width: 991px) {
+  .cz-collections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .cz-collections {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .cz-collection-intro {
+    margin: -16px 0 24px;
+    font-size: 15px;
+  }
+}
+
+/* Espace sous la barre latérale de la carte (avant le pied de page) */
+.cz-catalogue .cz-sidebar {
+  padding-bottom: 80px;
+}
+
+@media (max-width: 767px) {
+  .cz-catalogue .cz-sidebar {
+    padding-bottom: 0;
+  }
+}
+
+/* Liens de la carte : soulignés uniquement au survol
+   (la catégorie ou la collection ouverte est en gras) */
+.cz-cat-list a,
+.cz-cat-list .is-active a,
+.cz-cat-bar a,
+.cz-cat-bar .is-active a {
+  text-decoration: none !important;
+}
+
+.cz-cat-list .is-active a,
+.cz-cat-bar .is-active a {
+  font-weight: 600;
+}
+
+.cz-cat-list a:hover,
+.cz-cat-bar a:hover {
+  text-decoration: underline !important;
+}
+
+/* Cartes des collections et de l'équipe : pas de soulignement
+   (le contenu des pages souligne les liens par défaut) ; au survol, le nom seulement */
+.cz-collection-card > a,
+.cz-collection-card > a *,
+.cz-member-card > a,
+.cz-member-card > a * {
+  text-decoration: none !important;
+}
+
+.cz-collection-card > a:hover .cz-collection-name,
+.cz-member-card > a:hover .cz-member-name {
+  text-decoration: underline !important;
+}
