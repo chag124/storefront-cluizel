@@ -1025,7 +1025,17 @@ function cz_cart_suggestions() {
 		return;
 	}
 	$in_cart = wp_list_pluck( WC()->cart->get_cart(), 'product_id' );
-	$ids     = array_values( array_diff( WC()->cart->get_cross_sells(), $in_cart ) );
+	/* 1. Ventes croisées des articles du panier (choisies dans le back office) */
+	$ids = array_values( array_diff( WC()->cart->get_cross_sells(), $in_cart ) );
+	$ids = array_values( array_filter( $ids, 'cz_is_suggestable' ) );
+	/* 2. Sinon, produits de la même catégorie */
+	if ( count( $ids ) < 2 ) {
+		foreach ( $in_cart as $pid ) {
+			$ids = array_merge( $ids, wc_get_related_products( $pid, 4, array_merge( $in_cart, $ids ) ) );
+		}
+		$ids = array_values( array_unique( array_filter( $ids, 'cz_is_suggestable' ) ) );
+	}
+	/* 3. Sinon, au hasard */
 	if ( count( $ids ) < 2 ) {
 		$extra = wc_get_products(
 			array(
@@ -2699,3 +2709,77 @@ add_shortcode( 'cz_collections', function () {
 	echo '</ul>';
 	return ob_get_clean();
 } );
+
+/* =========================================================================
+ * 23. Ventes croisées (itération 13)
+ *     Back office : fiche produit › Données produit › Produits liés
+ *       - « Produits suggérés » et « Ventes croisées » : affichés sur la fiche
+ *         produit (« Pour compléter votre commande »), en premier ;
+ *       - « Ventes croisées » : affichées dans le panier (« Vous aimerez aussi »).
+ *     Si aucun produit n'est choisi, on complète avec la même catégorie.
+ * ====================================================================== */
+
+/* Produit publié, visible et en stock */
+function cz_is_suggestable( $id ) {
+	$p = wc_get_product( $id );
+	return $p && 'publish' === $p->get_status() && $p->is_visible() && $p->is_in_stock();
+}
+
+/* Les 3 suggestions de la fiche produit, dans l'ordre :
+   produits suggérés, ventes croisées, même catégorie, puis au hasard */
+function cz_product_suggestion_ids( $product, $limit = 3 ) {
+	$self = $product->get_id();
+	$ids  = array_merge( $product->get_upsell_ids(), $product->get_cross_sell_ids() );
+	$ids  = array_values( array_unique( array_filter( array_diff( $ids, array( $self ) ), 'cz_is_suggestable' ) ) );
+
+	if ( count( $ids ) < $limit ) {
+		$related = wc_get_related_products( $self, $limit + 3, $ids );
+		$ids     = array_values( array_unique( array_merge( $ids, array_filter( $related, 'cz_is_suggestable' ) ) ) );
+	}
+	if ( count( $ids ) < $limit ) {
+		$extra = wc_get_products(
+			array(
+				'status'       => 'publish',
+				'visibility'   => 'catalog',
+				'stock_status' => 'instock',
+				'limit'        => $limit - count( $ids ),
+				'exclude'      => array_merge( $ids, array( $self ) ),
+				'orderby'      => 'rand',
+				'return'       => 'ids',
+			)
+		);
+		$ids   = array_merge( $ids, $extra );
+	}
+	return array_slice( $ids, 0, $limit );
+}
+
+/* Fiche produit : « Pour compléter votre commande » avec nos suggestions
+   (même gabarit et mêmes cartes qu'avant, mais dans l'ordre choisi) */
+add_action( 'init', function () {
+	remove_action( 'woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20 );
+	/* Les « produits suggérés » sont déjà dans nos suggestions : pas de seconde liste */
+	remove_action( 'woocommerce_after_single_product_summary', 'storefront_upsell_display', 15 );
+	remove_action( 'woocommerce_after_single_product_summary', 'woocommerce_upsell_display', 15 );
+}, 30 );
+
+add_action( 'woocommerce_after_single_product_summary', function () {
+	global $product;
+	if ( ! $product instanceof WC_Product ) {
+		return;
+	}
+	$products = array_filter( array_map( 'wc_get_product', cz_product_suggestion_ids( $product, 3 ) ) );
+	if ( ! $products ) {
+		return;
+	}
+	wc_set_loop_prop( 'name', 'related' );
+	wc_set_loop_prop( 'columns', 3 );
+	wc_get_template(
+		'single-product/related.php',
+		array(
+			'related_products' => $products,
+			'columns'          => 3,
+			'posts_per_page'   => 3,
+			'orderby'          => 'none',
+		)
+	);
+}, 20 );
