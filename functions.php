@@ -237,6 +237,7 @@ function cz_footer() {
 			<li><a href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>">La carte</a></li>
 			<li><a href="<?php echo esc_url( wc_get_cart_url() ); ?>">Mon panier</a></li>
 			<li><a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>">Mon compte</a></li>
+			<li><a href="<?php echo esc_url( get_post_type_archive_link( 'cz_equipe' ) ); ?>">Notre équipe</a></li>
 		</ul>
 		<ul class="cz-footer-links">
 			<li><a href="<?php echo esc_url( $mentions ); ?>">Mentions légales</a></li>
@@ -2214,3 +2215,268 @@ add_filter( 'gettext', function ( $translation, $text, $domain ) {
 	}
 	return $translation;
 }, 20, 3 );
+
+/* =========================================================================
+ * 21. Équipe (itération 11)
+ *     Type de contenu « Membres de l'équipe » : une page par salarié
+ *     (/equipe/prenom-nom/) et une page qui les liste tous (/equipe/).
+ *     Gabarits : archive-cz_equipe.php et single-cz_equipe.php
+ * ====================================================================== */
+
+add_action( 'init', function () {
+	register_post_type(
+		'cz_equipe',
+		array(
+			'labels'             => array(
+				'name'                  => 'Équipe',
+				'singular_name'         => 'Membre de l’équipe',
+				'menu_name'             => 'Équipe',
+				'all_items'             => 'Tous les membres',
+				'add_new'               => 'Ajouter un membre',
+				'add_new_item'          => 'Ajouter un membre de l’équipe',
+				'edit_item'             => 'Modifier le membre',
+				'new_item'              => 'Nouveau membre',
+				'view_item'             => 'Voir le profil',
+				'view_items'            => 'Voir l’équipe',
+				'search_items'          => 'Rechercher un membre',
+				'not_found'             => 'Aucun membre',
+				'not_found_in_trash'    => 'Aucun membre dans la corbeille',
+				'featured_image'        => 'Photo du membre',
+				'set_featured_image'    => 'Choisir la photo',
+				'remove_featured_image' => 'Retirer la photo',
+				'use_featured_image'    => 'Utiliser comme photo',
+				'archives'              => 'Notre équipe',
+			),
+			'public'             => true,
+			'has_archive'        => 'equipe',
+			'rewrite'            => array(
+				'slug'       => 'equipe',
+				'with_front' => false,
+			),
+			'menu_icon'          => 'dashicons-groups',
+			'menu_position'      => 26,
+			'supports'           => array( 'title', 'editor', 'thumbnail', 'page-attributes' ),
+			'show_in_rest'       => false, /* éditeur classique : plus simple pour une fiche */
+			'show_in_nav_menus'  => true,
+		)
+	);
+} );
+
+/* Titre : « Prénom Nom » */
+add_filter( 'enter_title_here', function ( $text, $post ) {
+	return 'cz_equipe' === $post->post_type ? 'Prénom Nom' : $text;
+}, 10, 2 );
+
+/* Champs du profil (Secure Custom Fields) */
+add_action( 'acf/init', function () {
+	if ( ! function_exists( 'acf_add_local_field_group' ) ) {
+		return;
+	}
+	acf_add_local_field_group(
+		array(
+			'key'                   => 'group_cz_equipe',
+			'title'                 => 'Profil',
+			'position'              => 'acf_after_title',
+			'style'                 => 'seamless',
+			'label_placement'       => 'top',
+			'fields'                => array(
+				array(
+					'key'          => 'field_cz_poste',
+					'label'        => 'Poste',
+					'name'         => 'cz_poste',
+					'type'         => 'text',
+					'required'     => 1,
+					'placeholder'  => 'Ex. : Maître chocolatier',
+					'wrapper'      => array( 'width' => 50 ),
+				),
+				array(
+					'key'          => 'field_cz_depuis',
+					'label'        => 'Chez Cluizel depuis (année)',
+					'name'         => 'cz_depuis',
+					'type'         => 'number',
+					'min'          => 1948,
+					'max'          => 2100,
+					'placeholder'  => 'Ex. : 2015',
+					'wrapper'      => array( 'width' => 25 ),
+				),
+				array(
+					'key'          => 'field_cz_specialite',
+					'label'        => 'Spécialité',
+					'name'         => 'cz_specialite',
+					'type'         => 'text',
+					'placeholder'  => 'Ex. : Ganaches et pralinés',
+					'wrapper'      => array( 'width' => 25 ),
+				),
+				array(
+					'key'          => 'field_cz_citation',
+					'label'        => 'Citation',
+					'name'         => 'cz_citation',
+					'type'         => 'textarea',
+					'rows'         => 2,
+					'instructions' => 'Une phrase courte, affichée en grand sur le profil.',
+				),
+				array(
+					'key'           => 'field_cz_prefere',
+					'label'         => 'Chocolat préféré',
+					'name'          => 'cz_prefere',
+					'type'          => 'post_object',
+					'post_type'     => array( 'product' ),
+					'return_format' => 'id',
+					'allow_null'    => 1,
+					'ui'            => 1,
+					'instructions'  => 'Produit de la carte mis en avant sur le profil.',
+				),
+			),
+			'location'              => array(
+				array(
+					array(
+						'param'    => 'post_type',
+						'operator' => '==',
+						'value'    => 'cz_equipe',
+					),
+				),
+			),
+			'hide_on_screen'        => array( 'permalink', 'excerpt', 'discussion', 'comments', 'author', 'format', 'categories', 'tags', 'send-trackbacks' ),
+		)
+	);
+} );
+
+/* Lecture d'un champ (SCF si actif, sinon la métadonnée) */
+function cz_member_field( $name, $post_id = null ) {
+	$post_id = $post_id ? $post_id : get_the_ID();
+	$value   = function_exists( 'get_field' ) ? get_field( $name, $post_id ) : get_post_meta( $post_id, $name, true );
+	return is_string( $value ) ? trim( $value ) : $value;
+}
+
+/* Liste : tous les membres, dans l'ordre choisi (attribut « Ordre ») */
+add_action( 'pre_get_posts', function ( $query ) {
+	if ( ! is_admin() && $query->is_main_query() && $query->is_post_type_archive( 'cz_equipe' ) ) {
+		$query->set( 'posts_per_page', -1 );
+		$query->set( 'orderby', array( 'menu_order' => 'ASC', 'title' => 'ASC' ) );
+	}
+} );
+
+/* Admin : colonnes Photo et Poste, tri par ordre */
+add_filter( 'manage_cz_equipe_posts_columns', function ( $columns ) {
+	return array(
+		'cb'        => $columns['cb'],
+		'cz_photo'  => 'Photo',
+		'title'     => 'Nom',
+		'cz_poste'  => 'Poste',
+		'cz_ordre'  => 'Ordre',
+		'date'      => $columns['date'],
+	);
+} );
+
+add_action( 'manage_cz_equipe_posts_custom_column', function ( $column, $post_id ) {
+	if ( 'cz_photo' === $column ) {
+		echo get_the_post_thumbnail( $post_id, array( 48, 48 ), array( 'style' => 'border-radius:50%;object-fit:cover;width:48px;height:48px;' ) );
+	} elseif ( 'cz_poste' === $column ) {
+		echo esc_html( (string) cz_member_field( 'cz_poste', $post_id ) );
+	} elseif ( 'cz_ordre' === $column ) {
+		echo (int) get_post_field( 'menu_order', $post_id );
+	}
+}, 10, 2 );
+
+add_action( 'pre_get_posts', function ( $query ) {
+	if ( is_admin() && $query->is_main_query() && 'cz_equipe' === $query->get( 'post_type' ) && ! $query->get( 'orderby' ) ) {
+		$query->set( 'orderby', array( 'menu_order' => 'ASC', 'title' => 'ASC' ) );
+	}
+} );
+
+/* Réglages de la page « Notre équipe » : Équipe › Page Équipe */
+function cz_team_settings() {
+	return wp_parse_args(
+		array_filter( (array) get_option( 'cz_team_settings', array() ) ),
+		array(
+			'title' => 'Notre équipe',
+			'intro' => 'Depuis 1948, nos chocolatiers, nos conseillers et nos artisans font vivre la maison Cluizel. Faites leur connaissance.',
+		)
+	);
+}
+
+add_action( 'admin_menu', function () {
+	add_submenu_page( 'edit.php?post_type=cz_equipe', 'Page Équipe', 'Page Équipe', 'edit_pages', 'cz-team', 'cz_team_settings_page' );
+} );
+
+add_action( 'admin_init', function () {
+	register_setting(
+		'cz_team',
+		'cz_team_settings',
+		array(
+			'type'              => 'array',
+			'sanitize_callback' => function ( $input ) {
+				$input = (array) $input;
+				return array(
+					'title' => sanitize_text_field( $input['title'] ?? '' ),
+					'intro' => sanitize_textarea_field( $input['intro'] ?? '' ),
+				);
+			},
+		)
+	);
+} );
+
+add_filter( 'option_page_capability_cz_team', fn() => 'edit_pages' );
+
+function cz_team_settings_page() {
+	$s = cz_team_settings();
+	?>
+	<div class="wrap">
+		<h1>Page Équipe</h1>
+		<p>Titre et texte d’introduction de la page qui liste tous les membres : <a href="<?php echo esc_url( get_post_type_archive_link( 'cz_equipe' ) ); ?>" target="_blank"><?php echo esc_html( get_post_type_archive_link( 'cz_equipe' ) ); ?></a>. L’ordre des membres se règle dans chaque fiche (Attributs › Ordre).</p>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'cz_team' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="cz-team-title">Titre</label></th>
+					<td><input type="text" id="cz-team-title" name="cz_team_settings[title]" value="<?php echo esc_attr( $s['title'] ); ?>" class="regular-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-team-intro">Introduction</label></th>
+					<td><textarea id="cz-team-intro" name="cz_team_settings[intro]" rows="4" class="large-text"><?php echo esc_textarea( $s['intro'] ); ?></textarea></td>
+				</tr>
+			</table>
+			<?php submit_button( 'Enregistrer' ); ?>
+		</form>
+	</div>
+	<?php
+}
+
+/* Fil d'Ariane : « Accueil / Notre équipe / Prénom Nom » */
+add_filter( 'woocommerce_get_breadcrumb', function ( $crumbs ) {
+	if ( is_post_type_archive( 'cz_equipe' ) || is_singular( 'cz_equipe' ) ) {
+		foreach ( $crumbs as $i => $crumb ) {
+			if ( isset( $crumb[1] ) && get_post_type_archive_link( 'cz_equipe' ) === $crumb[1] || ( is_post_type_archive( 'cz_equipe' ) && $i === count( $crumbs ) - 1 ) ) {
+				$crumbs[ $i ][0] = cz_team_settings()['title'];
+			}
+		}
+	}
+	return $crumbs;
+} );
+
+/* Carte d'un membre (liste et « Les autres membres ») */
+function cz_member_card( $post_id ) {
+	$poste = (string) cz_member_field( 'cz_poste', $post_id );
+	?>
+	<li class="cz-member-card">
+		<a href="<?php echo esc_url( get_permalink( $post_id ) ); ?>">
+			<span class="cz-member-photo">
+				<?php
+				if ( has_post_thumbnail( $post_id ) ) {
+					echo get_the_post_thumbnail( $post_id, 'large', array( 'alt' => '' ) );
+				} else {
+					echo '<span class="cz-member-initials" aria-hidden="true">' . esc_html( mb_substr( get_the_title( $post_id ), 0, 1 ) ) . '</span>';
+				}
+				?>
+			</span>
+			<span class="cz-member-body">
+				<span class="cz-member-name"><?php echo esc_html( get_the_title( $post_id ) ); ?></span>
+				<?php if ( $poste ) : ?>
+					<span class="cz-member-role"><?php echo esc_html( $poste ); ?></span>
+				<?php endif; ?>
+				<span class="cz-btn-outline">Voir le profil</span>
+			</span>
+		</a>
+	</li>
+	<?php
+}
