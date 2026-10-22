@@ -1,0 +1,325 @@
+/* ==========================================================================
+   Facture PDF – Cluizel Paris (modèle « Cluizel »)
+   Rendu par Dompdf (moteur PDF de l'extension) : mise en page en tableaux,
+   pas de flex ni de grid. Couleurs de la charte : noir, blanc, beige.
+   ========================================================================== */
+
+@page {
+	margin-top: 0;
+	margin-bottom: 3cm;
+	margin-left: 1.8cm;
+	margin-right: 1.8cm;
+	footer: docFooter;
+}
+
+body {
+	margin: 0;
+	background: #fff;
+	color: #000;
+	font-family: "Open Sans", sans-serif;
+	font-size: 8pt;
+	line-height: 1.25;
+}
+
+h1, h2, h3, h4 {
+	margin: 0;
+	font-weight: normal;
+}
+
+p {
+	margin: 0;
+	padding: 0;
+}
+
+ol,
+ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+a {
+	color: #000;
+	text-decoration: none;
+}
+
+table {
+	border: 0;
+	border-collapse: collapse;
+	border-spacing: 0;
+	margin: 0;
+	padding: 0;
+}
+
+th,
+td {
+	text-align: left;
+	vertical-align: top;
+}
+
+table.container {
+	width: 100%;
+}
+
+/* Bandeau noir en haut de page */
+.cz-topbar {
+	margin: 0 -1.8cm 7mm;
+	padding: 2mm 0;
+	background: #000;
+	color: #fff;
+	font-size: 8pt;
+	text-align: center;
+}
+
+/* En-tête : logo à gauche, coordonnées de la boutique à droite */
+table.head {
+	margin-bottom: 5mm;
+	padding-bottom: 4mm;
+	border-bottom: 0.3mm solid #000;
+}
+
+td.header {
+	width: 55%;
+	vertical-align: middle;
+}
+
+td.header img {
+	max-width: 100%;
+	max-height: 1.4cm;
+	width: auto;
+}
+
+.cz-logo-text {
+	font-size: 22pt;
+	font-weight: bold;
+	letter-spacing: 3mm;
+}
+
+.cz-logo-sub {
+	margin-top: 1mm;
+	font-size: 7pt;
+	letter-spacing: 2mm;
+}
+
+td.shop-info {
+	width: 45%;
+	font-size: 7.5pt;
+	line-height: 1.35;
+	text-align: right;
+}
+
+.shop-name {
+	margin-bottom: 1.5mm;
+	font-size: 10pt;
+	font-weight: bold;
+}
+
+/* Titre « Facture » */
+.document-type-label {
+	margin: 0 0 4mm;
+	font-size: 18pt;
+	letter-spacing: 0.5mm;
+}
+
+/* Encart beige : client, retrait / livraison, informations de facture */
+table.order-data-addresses {
+	width: 100%;
+	margin-bottom: 6mm;
+	background: #f1ede8;
+}
+
+table.order-data-addresses td.address,
+table.order-data-addresses td.order-data {
+	padding: 4mm;
+	font-size: 7.5pt;
+	line-height: 1.35;
+}
+
+.billing-email {
+	word-break: break-all;
+}
+
+table.order-data-addresses h3 {
+	margin-bottom: 2mm;
+	font-size: 8pt;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.3mm;
+}
+
+.billing-address {
+	width: 28%;
+}
+
+.shipping-address {
+	width: 26%;
+}
+
+td.order-data {
+	width: 46%;
+}
+
+td.order-data table {
+	width: 100%;
+}
+
+td.order-data th,
+td.order-data td {
+	padding: 0.4mm 0;
+	white-space: nowrap;
+}
+
+td.order-data th {
+	width: 45%;
+	padding-right: 2mm;
+	font-weight: normal;
+}
+
+td.order-data td {
+	font-weight: bold;
+}
+
+/* Tableau des articles : en-tête noir */
+table.order-details,
+table.notes-totals {
+	width: 100%;
+	page-break-before: avoid;
+}
+
+.order-details th,
+.order-details td {
+	padding: 1.6mm 2mm;
+	border-bottom: 0.2mm solid #d8d2ca;
+}
+
+.order-details thead th {
+	padding-top: 1.5mm;
+	padding-bottom: 1.5mm;
+	border-bottom: 0;
+	background: #000;
+	color: #fff;
+	font-size: 7.5pt;
+	font-weight: bold;
+}
+
+.order-details .quantity,
+.order-details .price {
+	width: 18%;
+}
+
+.order-details td.quantity,
+.order-details td.price,
+.order-details th.quantity,
+.order-details th.price {
+	text-align: right;
+}
+
+.item-name {
+	font-weight: bold;
+}
+
+.item-meta {
+	margin-top: 0.8mm;
+	color: #444;
+	font-size: 6.5pt;
+	line-height: 1.25;
+}
+
+.wc-item-meta li {
+	display: inline;
+	margin: 0 2mm 0 0;
+}
+
+.wc-item-meta li p,
+.wc-item-meta li dd,
+.wc-item-meta li strong {
+	display: inline;
+	margin: 0;
+}
+
+/* Remerciement et totaux */
+td.notes-cell {
+	width: 58%;
+	padding: 4mm 6mm 0 0;
+}
+
+td.totals-cell {
+	width: 42%;
+	padding-top: 2mm;
+}
+
+.document-notes {
+	margin-bottom: 5mm;
+}
+
+.document-notes h3 {
+	margin-bottom: 1mm;
+	font-weight: bold;
+}
+
+.cz-thanks {
+	font-size: 8.5pt;
+}
+
+table.totals {
+	width: 100%;
+	table-layout: fixed;
+}
+
+table.totals th,
+table.totals td {
+	padding: 1mm 2mm;
+	border: 0;
+}
+
+table.totals th {
+	font-weight: normal;
+}
+
+table.totals td {
+	text-align: right;
+}
+
+table.totals tr.order_total th,
+table.totals tr.order_total td {
+	padding-top: 2mm;
+	padding-bottom: 2mm;
+	background: #000;
+	color: #fff;
+	font-size: 9.5pt;
+	font-weight: bold;
+}
+
+/* Le mode de paiement est déjà dans l'encart beige */
+table.totals tr.payment_method {
+	display: none;
+}
+
+div.bottom-spacer {
+	clear: both;
+	height: 4mm;
+}
+
+/* Pied de page : mentions légales (réglées dans l'extension) */
+#footer {
+	position: absolute;
+	bottom: -2.2cm;
+	left: 0;
+	right: 0;
+	height: 2cm;
+	padding-top: 2.5mm;
+	border-top: 0.3mm solid #000;
+	color: #444;
+	font-size: 7pt;
+	line-height: 1.4;
+	text-align: center;
+}
+
+.pagenum:before {
+	content: counter(page);
+}
+
+.pickup-location-details {
+	margin-top: 2mm;
+	font-size: 7pt;
+}

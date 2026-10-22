@@ -68,7 +68,10 @@ else :
 			<span>Total</span>
 			<strong><?php echo wp_kses_post( $last->get_formatted_order_total() ); ?></strong>
 		</p>
-		<?php cz_cancel_order_button( $last ); ?>
+		<div class="cz-account-orders-actions">
+			<?php cz_invoice_button( $last ); ?>
+			<?php cz_cancel_order_button( $last ); ?>
+		</div>
 	</section>
 
 	<?php if ( $cz_orders ) : ?>
@@ -81,6 +84,7 @@ else :
 						<span><?php echo esc_html( wc_format_datetime( $order->get_date_created(), 'd/m/Y' ) ); ?></span>
 						<span><?php echo esc_html( wc_get_order_status_name( $order->get_status() ) ); ?></span>
 						<strong><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></strong>
+						<span class="cz-account-history-invoice"><?php cz_invoice_button( $order, true ); ?></span>
 					</li>
 				<?php endforeach; ?>
 			</ul>

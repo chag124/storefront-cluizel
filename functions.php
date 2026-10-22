@@ -3468,3 +3468,23 @@ add_filter( 'woocommerce_page_title', function ( $title ) {
 	}
 	return $title;
 } );
+
+/* Factures PDF : compatibilité avec les différentes versions de l'extension
+   (certaines fonctions n'existent que dans les versions récentes) */
+function cz_pdf_table_headers( $document ) {
+	if ( function_exists( 'wpo_wcpdf_get_simple_template_default_table_headers' ) ) {
+		return wpo_wcpdf_get_simple_template_default_table_headers( $document );
+	}
+	return array(
+		'product'  => 'Produit',
+		'quantity' => 'Quantité',
+		'price'    => 'Prix',
+	);
+}
+
+function cz_pdf_price( $price ) {
+	if ( function_exists( 'wpo_ips_kses_price' ) ) {
+		return wpo_ips_kses_price( $price );
+	}
+	return wp_kses_post( $price );
+}
