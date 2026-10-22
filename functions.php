@@ -3203,3 +3203,9 @@ add_action( 'wp', function () {
 		remove_action( 'storefront_before_content', 'woocommerce_breadcrumb', 10 );
 	}
 }, 20 );
+
+/* Nouveautés : image entière (taille « produit » non recadrée,
+   au lieu de la miniature carrée qui coupe les coffrets sur les côtés) */
+add_filter( 'single_product_archive_thumbnail_size', function ( $size ) {
+	return 'cz_new' === wc_get_loop_prop( 'name' ) ? 'woocommerce_single' : $size;
+} );

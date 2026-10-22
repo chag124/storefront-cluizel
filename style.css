@@ -7,6 +7,14 @@
  Text Domain:  storefront-child
 */
 
+/* Aucune règle n’est forcée (pas de « important »).
+   Quand un style doit passer devant ceux de Storefront ou de WooCommerce,
+   son sélecteur commence par #page (le conteneur principal de Storefront,
+   qui entoure l'en-tête, le contenu et le pied de page) : il devient plus
+   précis que les styles du thème parent et s'applique sans forcer.
+   Pour les classes du <body> (.woocommerce-cart, .single-product…),
+   #page est placé juste après : .woocommerce-cart #page .cart_totals */
+
 /* ==========================================================================
    1. Variables de la maquette
    ========================================================================== */
@@ -4900,4 +4908,18 @@ body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-fee-hint td::bef
   .cz-univers-card:hover img {
     transform: none;
   }
+}
+
+/* Nouveautés : image un peu plus petite et toujours entière */
+#page .cz-new ul.products li.product .cz-card-media {
+  padding: 24px;
+}
+
+#page .cz-new ul.products li.product .cz-card-media img {
+  width: auto;
+  height: auto;
+  max-width: 78%;
+  max-height: 100%;
+  margin: 0;
+  object-fit: contain;
 }
