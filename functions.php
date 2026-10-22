@@ -4025,3 +4025,36 @@ function cz_slot_settings_page() {
 	</div>
 	<?php
 }
+
+/* =========================================================================
+ * 32. SEO : compléments à l'extension Yoast SEO (itération 21)
+ *     Yoast gère la balise Title, la meta description et l'Open Graph
+ *     (champs SEO sous chaque produit, catégorie et collection).
+ *     Le thème précise seulement le partage des fiches produit.
+ * ====================================================================== */
+
+/* Fiche produit partagée : type « product » au lieu de « article » */
+add_filter( 'wpseo_opengraph_type', function ( $type ) {
+	return ( function_exists( 'is_product' ) && is_product() ) ? 'product' : $type;
+} );
+
+/* Prix et disponibilité pour les réseaux sociaux (Facebook, Pinterest…) */
+add_action( 'wpseo_head', function () {
+	if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+		return;
+	}
+	$product = wc_get_product( get_queried_object_id() );
+	if ( ! $product || '' === $product->get_price() ) {
+		return;
+	}
+	printf( '<meta property="product:price:amount" content="%s" />' . "\n", esc_attr( wc_format_decimal( wc_get_price_to_display( $product ), 2 ) ) );
+	printf( '<meta property="product:price:currency" content="%s" />' . "\n", esc_attr( get_woocommerce_currency() ) );
+	printf( '<meta property="product:availability" content="%s" />' . "\n", $product->is_in_stock() ? 'in stock' : 'out of stock' );
+}, 40 );
+
+/* Liste des produits : on retire les colonnes de score Yoast pour garder la liste lisible
+   (les scores restent visibles dans chaque fiche) */
+add_filter( 'manage_edit-product_columns', function ( $columns ) {
+	unset( $columns['wpseo-score'], $columns['wpseo-score-readability'], $columns['wpseo-links'], $columns['wpseo-linked'] );
+	return $columns;
+}, 30 );
