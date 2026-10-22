@@ -7,6 +7,14 @@
  Text Domain:  storefront-child
 */
 
+/* Aucune règle n’est forcée (pas de « important »).
+   Quand un style doit passer devant ceux de Storefront ou de WooCommerce,
+   son sélecteur commence par #page (le conteneur principal de Storefront,
+   qui entoure l'en-tête, le contenu et le pied de page) : il devient plus
+   précis que les styles du thème parent et s'applique sans forcer.
+   Pour les classes du <body> (.woocommerce-cart, .single-product…),
+   #page est placé juste après : .woocommerce-cart #page .cart_totals */
+
 /* ==========================================================================
    1. Variables de la maquette
    ========================================================================== */
@@ -367,8 +375,34 @@ input[type="submit"] {
 }
 
 @media (max-width: 767px) {
+  .site-footer {
+    padding: 64px 0;
+  }
+
   .cz-footer {
     grid-template-columns: 1fr;
+    justify-items: start;
+    align-items: start;
+    gap: 56px;
+    text-align: left;
+  }
+
+  /* Le logo de l'en-tête est placé en colonne 2 sur mobile : on annule ce placement ici */
+  .site-footer .cz-footer .cz-logo {
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: start;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .cz-footer-links li {
+    margin: 0;
+    line-height: 27px;
+  }
+
+  .cz-footer-links a {
+    font-size: 14px;
   }
 }
 
