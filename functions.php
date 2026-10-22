@@ -3488,3 +3488,159 @@ function cz_pdf_price( $price ) {
 	}
 	return wp_kses_post( $price );
 }
+
+/* =========================================================================
+ * 30. Livraison selon le poids (itération 19)
+ *     Mode de livraison « Livraison selon le poids » : 3 tranches réglables
+ *     dans WooCommerce › Réglages › Expédition › zone › Modifier.
+ * ====================================================================== */
+
+add_action( 'woocommerce_shipping_init', function () {
+	require_once get_stylesheet_directory() . '/inc/class-cz-shipping-weight.php';
+} );
+
+add_filter( 'woocommerce_shipping_methods', function ( $methods ) {
+	$methods['cz_weight'] = 'CZ_Shipping_Weight';
+	return $methods;
+} );
+
+/* Poids total (kg) des articles à expédier, quelle que soit l'unité de la boutique */
+function cz_package_weight( $contents ) {
+	$weight = 0;
+	foreach ( (array) $contents as $item ) {
+		$product = $item['data'] ?? null;
+		if ( ! $product || ! $product->needs_shipping() || '' === $product->get_weight() ) {
+			continue;
+		}
+		$weight += wc_get_weight( (float) $product->get_weight(), 'kg' ) * (float) $item['quantity'];
+	}
+	return round( $weight, 3 );
+}
+
+/* 0.45 -> « 450 g » ; 1.2 -> « 1,2 kg » */
+function cz_format_weight( $kg ) {
+	$kg = (float) $kg;
+	if ( $kg > 0 && $kg < 1 ) {
+		return cz_format_number( round( $kg * 1000 ) ) . ' g';
+	}
+	return cz_format_number( round( $kg, 2 ) ) . ' kg';
+}
+
+/* « Jusqu'à 500 g », « De 500 g à 2 kg », « Plus de 2 kg » */
+function cz_tier_label( $tier ) {
+	if ( null === $tier['max'] ) {
+		return 'Plus de ' . cz_format_weight( $tier['min'] );
+	}
+	if ( $tier['min'] <= 0 ) {
+		return 'Jusqu’à ' . cz_format_weight( $tier['max'] );
+	}
+	return 'De ' . cz_format_weight( $tier['min'] ) . ' à ' . cz_format_weight( $tier['max'] );
+}
+
+/* Mode « Livraison selon le poids » actif dans la zone du panier (ou null) */
+function cz_weight_method_for_cart() {
+	if ( ! WC()->cart || ! WC()->cart->needs_shipping() ) {
+		return null;
+	}
+	$packages = WC()->shipping()->get_packages();
+	if ( empty( $packages[0] ) ) {
+		return null;
+	}
+	$zone = WC_Shipping_Zones::get_zone_matching_package( $packages[0] );
+	foreach ( $zone->get_shipping_methods( true ) as $method ) {
+		if ( 'cz_weight' === $method->id ) {
+			return $method;
+		}
+	}
+	return null;
+}
+
+/* Grille des tarifs : poids du panier, 3 tranches, tranche actuelle en gras */
+function cz_weight_grid_html() {
+	$method = cz_weight_method_for_cart();
+	if ( ! $method ) {
+		return '';
+	}
+	$packages = WC()->shipping()->get_packages();
+	$weight   = cz_package_weight( $packages[0]['contents'] ?? array() );
+	$current  = $method->get_tier_index( $weight );
+
+	$html  = '<p class="cz-weight-total">' . esc_html( $method->title ) . ' selon le poids · votre commande : <strong>' . esc_html( cz_format_weight( $weight ) ) . '</strong></p>';
+	$html .= '<ul class="cz-weight-tiers">';
+	foreach ( $method->get_tiers() as $i => $tier ) {
+		$html .= sprintf(
+			'<li class="%1$s"><span>%2$s</span><span>%3$s</span></li>',
+			$i === $current ? 'is-current' : '',
+			esc_html( cz_tier_label( $tier ) ),
+			wp_kses_post( wc_price( $tier['cost'] ) )
+		);
+	}
+	$html .= '</ul>';
+	if ( null === $current ) {
+		$html .= '<p class="cz-weight-over">Votre commande dépasse le poids maximum livrable : seul le retrait en boutique est possible.</p>';
+	}
+	return $html;
+}
+
+add_action( 'woocommerce_cart_totals_after_shipping', function () {
+	$html = cz_weight_grid_html();
+	if ( $html ) {
+		echo '<tr class="cz-weight-grid"><td colspan="2">' . $html . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
+	}
+} );
+
+/* Sous la pilule « Livraison à domicile » : poids et tranche */
+function cz_weight_rate_note( $rate ) {
+	if ( ! $rate || 'cz_weight' !== $rate->get_method_id() ) {
+		return '';
+	}
+	$meta = $rate->get_meta_data();
+	if ( empty( $meta['Poids total'] ) ) {
+		return '';
+	}
+	return '<span class="cz-ship-weight">Poids : ' . esc_html( $meta['Poids total'] ) . ' · ' . esc_html( mb_strtolower( $meta['Tranche'] ) ) . '</span>';
+}
+
+add_action( 'woocommerce_after_shipping_rate', function ( $rate ) {
+	echo cz_weight_rate_note( $rate ); // phpcs:ignore WordPress.Security.EscapeOutput
+} );
+
+/* Back office : colonne « Poids » dans la liste des produits */
+add_filter( 'manage_edit-product_columns', function ( $columns ) {
+	$new = array();
+	foreach ( $columns as $key => $label ) {
+		$new[ $key ] = $label;
+		if ( 'price' === $key ) {
+			$new['cz_weight'] = 'Poids';
+		}
+	}
+	return $new;
+}, 20 );
+
+add_action( 'manage_product_posts_custom_column', function ( $column, $post_id ) {
+	if ( 'cz_weight' !== $column ) {
+		return;
+	}
+	$product = wc_get_product( $post_id );
+	if ( ! $product ) {
+		return;
+	}
+	$weights = array();
+	if ( $product->is_type( 'variable' ) ) {
+		foreach ( $product->get_children() as $child_id ) {
+			$child = wc_get_product( $child_id );
+			if ( $child && '' !== $child->get_weight() ) {
+				$weights[] = wc_get_weight( (float) $child->get_weight(), 'kg' );
+			}
+		}
+	} elseif ( '' !== $product->get_weight() ) {
+		$weights[] = wc_get_weight( (float) $product->get_weight(), 'kg' );
+	}
+	if ( ! $weights ) {
+		echo '<span style="color:#b32d2e">À renseigner</span>';
+		return;
+	}
+	$min = min( $weights );
+	$max = max( $weights );
+	echo esc_html( $min === $max ? cz_format_weight( $min ) : cz_format_weight( $min ) . ' à ' . cz_format_weight( $max ) );
+}, 10, 2 );

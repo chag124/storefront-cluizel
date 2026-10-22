@@ -7,14 +7,6 @@
  Text Domain:  storefront-child
 */
 
-/* Aucune règle n’est forcée (pas de « important »).
-   Quand un style doit passer devant ceux de Storefront ou de WooCommerce,
-   son sélecteur commence par #page (le conteneur principal de Storefront,
-   qui entoure l'en-tête, le contenu et le pied de page) : il devient plus
-   précis que les styles du thème parent et s'applique sans forcer.
-   Pour les classes du <body> (.woocommerce-cart, .single-product…),
-   #page est placé juste après : .woocommerce-cart #page .cart_totals */
-
 /* ==========================================================================
    1. Variables de la maquette
    ========================================================================== */
@@ -5207,4 +5199,78 @@ body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-fee-hint td::bef
   .cz-active-filters {
     margin: 0 0 24px;
   }
+}
+
+/* ==========================================================================
+   Livraison selon le poids (itération 19)
+   ========================================================================== */
+
+/* Sous la pilule : « Poids : 1,2 kg · de 500 g à 2 kg » */
+.cz-ship-weight {
+  display: block;
+  margin-top: 6px;
+  padding: 0 20px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.cz-review-totals .cz-ship-weight {
+  margin-top: 2px;
+  padding: 0;
+  font-size: 11px;
+}
+
+/* Grille des tarifs dans le panier, juste sous le mode de réception */
+body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-weight-grid {
+  order: -1;
+  display: block;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-blanc);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-weight-grid td {
+  display: block;
+  text-align: left;
+}
+
+.cz-weight-total {
+  margin: 0 0 10px;
+}
+
+.cz-weight-total strong {
+  font-weight: 600;
+}
+
+.cz-weight-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  list-style: none;
+}
+
+.cz-weight-tiers li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--cz-radius-sm);
+  font-size: 12px;
+}
+
+.cz-weight-tiers li.is-current {
+  background: var(--cz-beige);
+  font-weight: 600;
+}
+
+.cz-weight-over {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 600;
 }

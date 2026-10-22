@@ -73,7 +73,7 @@ defined( 'ABSPATH' ) || exit;
 							$cost += array_sum( (array) $rate->get_taxes() );
 						}
 						?>
-						<dt><?php echo esc_html( $rate->get_label() ); ?></dt>
+						<dt><?php echo esc_html( $rate->get_label() ); ?><?php echo cz_weight_rate_note( $rate ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dt>
 						<dd><?php echo wp_kses_post( wc_price( $cost ) ); ?></dd>
 						<input type="hidden" name="shipping_method[<?php echo esc_attr( $i ); ?>]" data-index="<?php echo esc_attr( $i ); ?>" value="<?php echo esc_attr( $chosen ); ?>" class="shipping_method" />
 					<?php else : ?>
