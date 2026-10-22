@@ -159,6 +159,7 @@ defined( 'ABSPATH' ) || exit;
 				</div>
 
 				<div class="cz-thanks-side">
+					<?php cz_slot_card( $order ); ?>
 					<?php if ( $is_pickup ) : ?>
 						<?php cz_pickup_instructions(); ?>
 					<?php elseif ( $order->get_formatted_shipping_address() ) : ?>

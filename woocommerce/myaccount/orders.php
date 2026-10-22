@@ -41,6 +41,9 @@ else :
 				· <?php echo esc_html( wc_format_datetime( $last->get_date_created(), 'd/m/Y' ) ); ?>
 				· <?php echo esc_html( wc_get_order_status_name( $last->get_status() ) ); ?>
 			</p>
+			<?php if ( cz_order_slot_text( $last ) ) : ?>
+				<p class="cz-account-orders-slot"><?php echo esc_html( cz_order_slot_text( $last ) ); ?></p>
+			<?php endif; ?>
 		</div>
 		<ul>
 			<?php

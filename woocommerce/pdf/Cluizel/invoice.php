@@ -76,10 +76,16 @@ $cz_is_order = $cz_order instanceof WC_Order;
 				<h3>Retrait en boutique</h3>
 				<?php $cz_pickup = function_exists( 'cz_pickup_settings' ) ? cz_pickup_settings() : array( 'address' => '' ); ?>
 				<p><?php echo esc_html( $cz_pickup['address'] ); ?></p>
+				<?php if ( function_exists( 'cz_order_slot_text' ) && cz_order_slot_text( $cz_order, false ) ) : ?>
+					<p><strong><?php echo esc_html( ucfirst( cz_order_slot_text( $cz_order, false ) ) ); ?></strong></p>
+				<?php endif; ?>
 			<?php elseif ( $this->show_shipping_address() ) : ?>
 				<h3>Livré à</h3>
 				<?php do_action( 'wpo_wcpdf_before_shipping_address', $this->get_type(), $this->order ); ?>
 				<p><?php $this->shipping_address(); ?></p>
+				<?php if ( $cz_is_order && function_exists( 'cz_order_slot_text' ) && cz_order_slot_text( $cz_order, false ) ) : ?>
+					<p><strong><?php echo esc_html( ucfirst( cz_order_slot_text( $cz_order, false ) ) ); ?></strong></p>
+				<?php endif; ?>
 				<?php do_action( 'wpo_wcpdf_after_shipping_address', $this->get_type(), $this->order ); ?>
 			<?php endif; ?>
 		</td>

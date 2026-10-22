@@ -54,6 +54,8 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
 			<?php endif; ?>
 
 			<?php
+			cz_slot_picker();
+
 			if ( cz_is_local_pickup_chosen() ) {
 				cz_pickup_instructions();
 			}

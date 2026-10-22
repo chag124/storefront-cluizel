@@ -1566,6 +1566,9 @@ add_action( 'woocommerce_account_dashboard', function () {
 
 	echo '<div class="cz-current-order-box">';
 	echo '<p class="cz-current-order-status">' . esc_html( $labels[ $current ] ) . '</p>';
+	if ( function_exists( 'cz_order_slot_text' ) && cz_order_slot_text( $order ) ) {
+		echo '<p class="cz-current-order-slot"><strong>' . esc_html( cz_order_slot_text( $order ) ) . '</strong></p>';
+	}
 
 	if ( cz_order_is_pickup( $order ) ) {
 		$s    = cz_pickup_settings();
@@ -3644,3 +3647,381 @@ add_action( 'manage_product_posts_custom_column', function ( $column, $post_id )
 	$max = max( $weights );
 	echo esc_html( $min === $max ? cz_format_weight( $min ) : cz_format_weight( $min ) . ' à ' . cz_format_weight( $max ) );
 }, 10, 2 );
+
+/* =========================================================================
+ * 31. Créneaux de livraison et de retrait (itération 20)
+ *     Le client choisit un jour et une plage horaire à la validation de la
+ *     commande. Réglages : WooCommerce › Créneaux.
+ * ====================================================================== */
+
+function cz_slot_defaults() {
+	return array(
+		'pickup_days'    => array( 1, 2, 3, 4, 5, 6 ),
+		'pickup_times'   => "10h00 - 12h00\n12h00 - 14h00\n14h00 - 16h00\n16h00 - 18h00",
+		'pickup_delay'   => 1,
+		'delivery_days'  => array( 2, 3, 4, 5, 6 ),
+		'delivery_times' => "9h00 - 12h00\n14h00 - 18h00",
+		'delivery_delay' => 2,
+		'nb_days'        => 7,
+		'capacity'       => 5,
+	);
+}
+
+function cz_slot_settings() {
+	$saved = get_option( 'cz_slots' );
+	return is_array( $saved ) ? wp_parse_args( $saved, cz_slot_defaults() ) : cz_slot_defaults();
+}
+
+function cz_day_names() {
+	return array( 1 => 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche' );
+}
+
+function cz_month_names() {
+	return array( 1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre' );
+}
+
+/* Plages horaires d'un type (« pickup » ou « delivery »), une par ligne */
+function cz_slot_times( $type ) {
+	$s = cz_slot_settings();
+	return array_values( array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', (string) $s[ $type . '_times' ] ) ) ) );
+}
+
+/* « 10h00 - 12h00 » -> 600 (heure de début en minutes) */
+function cz_slot_start( $time ) {
+	if ( preg_match( '/(\d{1,2})\s*[h:]\s*(\d{0,2})/i', $time, $m ) ) {
+		return (int) $m[1] * 60 + (int) ( $m[2] ?: 0 );
+	}
+	return 0;
+}
+
+/* Nombre de commandes déjà prises par créneau : [ 'type|2026-10-27|10h00 - 12h00' => 3 ] */
+function cz_slot_bookings() {
+	static $counts = null;
+	if ( null !== $counts ) {
+		return $counts;
+	}
+	$counts = array();
+	$today  = ( new DateTimeImmutable( 'now', wp_timezone() ) )->format( 'Y-m-d' );
+	$orders = wc_get_orders(
+		array(
+			'limit'      => -1,
+			'status'     => array( 'pending', 'on-hold', 'processing', 'ready-pickup', 'completed' ),
+			'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery
+				array(
+					'key'     => '_cz_slot_day',
+					'value'   => $today,
+					'compare' => '>=',
+				),
+			),
+		)
+	);
+	foreach ( $orders as $order ) {
+		$key            = $order->get_meta( '_cz_slot_type' ) . '|' . $order->get_meta( '_cz_slot_day' ) . '|' . $order->get_meta( '_cz_slot_time' );
+		$counts[ $key ] = ( $counts[ $key ] ?? 0 ) + 1;
+	}
+	return $counts;
+}
+
+/* Jours proposés : [ [ 'date' => 'Y-m-d', 'ts' => DateTime, 'full' => [ plages indisponibles ] ], … ] */
+function cz_slot_days( $type ) {
+	$s        = cz_slot_settings();
+	$open     = array_map( 'intval', (array) $s[ $type . '_days' ] );
+	$times    = cz_slot_times( $type );
+	$capacity = (int) $s['capacity'];
+	$bookings = cz_slot_bookings();
+	$now      = new DateTimeImmutable( 'now', wp_timezone() );
+	$minutes  = (int) $now->format( 'G' ) * 60 + (int) $now->format( 'i' );
+	$day      = $now->setTime( 0, 0 )->modify( '+' . max( 0, (int) $s[ $type . '_delay' ] ) . ' days' );
+	$days     = array();
+
+	if ( ! $open || ! $times ) {
+		return $days;
+	}
+	for ( $i = 0; $i < 60 && count( $days ) < max( 1, (int) $s['nb_days'] ); $i++, $day = $day->modify( '+1 day' ) ) {
+		if ( ! in_array( (int) $day->format( 'N' ), $open, true ) ) {
+			continue;
+		}
+		$full = array();
+		foreach ( $times as $time ) {
+			$past   = $day->format( 'Y-m-d' ) === $now->format( 'Y-m-d' ) && cz_slot_start( $time ) <= $minutes + 60;
+			$booked = $capacity > 0 && ( $bookings[ $type . '|' . $day->format( 'Y-m-d' ) . '|' . $time ] ?? 0 ) >= $capacity;
+			if ( $past || $booked ) {
+				$full[] = $time;
+			}
+		}
+		if ( count( $full ) < count( $times ) ) {
+			$days[] = array( 'date' => $day->format( 'Y-m-d' ), 'day' => $day, 'full' => $full );
+		}
+	}
+	return $days;
+}
+
+/* « 2026-10-27 » -> « mardi 27 octobre » */
+function cz_slot_date_label( $date ) {
+	$d = DateTimeImmutable::createFromFormat( 'Y-m-d', $date, wp_timezone() );
+	if ( ! $d ) {
+		return $date;
+	}
+	return cz_day_names()[ (int) $d->format( 'N' ) ] . ' ' . $d->format( 'j' ) . ' ' . cz_month_names()[ (int) $d->format( 'n' ) ];
+}
+
+/* « 10h00 - 12h00 » -> « entre 10h00 et 12h00 » */
+function cz_slot_time_label( $time ) {
+	$parts = array_map( 'trim', preg_split( '/\s*[-–]\s*/', $time, 2 ) );
+	return 2 === count( $parts ) ? 'entre ' . $parts[0] . ' et ' . $parts[1] : $time;
+}
+
+/* Type de créneau du panier en cours */
+function cz_cart_slot_type() {
+	return cz_is_local_pickup_chosen() ? 'pickup' : 'delivery';
+}
+
+/* Carte « Créneau de retrait / de livraison » sur la page de validation */
+function cz_slot_picker() {
+	if ( ! WC()->cart || ! WC()->cart->needs_shipping() ) {
+		return;
+	}
+	$type   = cz_cart_slot_type();
+	$days   = cz_slot_days( $type );
+	$times  = cz_slot_times( $type );
+	$pickup = 'pickup' === $type;
+	$short  = array( 1 => 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.' );
+	$months = array( 1 => 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.' );
+
+	echo '<section class="cz-card cz-slots">';
+	echo '<h2 class="cz-card-title">' . ( $pickup ? 'Créneau de retrait' : 'Créneau de livraison' ) . '</h2>';
+
+	if ( ! $days ) {
+		echo '<p>Aucun créneau n’est disponible pour le moment. Merci de nous contacter.</p></section>';
+		return;
+	}
+
+	echo '<p class="cz-slots-help">' . ( $pickup ? 'Choisissez le jour et l’heure auxquels vous viendrez chercher votre commande en boutique.' : 'Choisissez le jour et la plage horaire où vous serez présent pour recevoir votre commande.' ) . '</p>';
+
+	echo '<fieldset class="cz-slot-group"><legend>Jour <abbr class="required" title="obligatoire">*</abbr></legend><div class="cz-slot-days">';
+	foreach ( $days as $d ) {
+		printf(
+			'<label class="cz-slot-day"><input type="radio" name="cz_slot_day" value="%1$s" data-full="%2$s"><span><small>%3$s</small><strong>%4$s</strong><small>%5$s</small></span></label>',
+			esc_attr( $d['date'] ),
+			esc_attr( wp_json_encode( $d['full'] ) ),
+			esc_html( $short[ (int) $d['day']->format( 'N' ) ] ),
+			esc_html( $d['day']->format( 'j' ) ),
+			esc_html( $months[ (int) $d['day']->format( 'n' ) ] )
+		);
+	}
+	echo '</div></fieldset>';
+
+	echo '<fieldset class="cz-slot-group"><legend>Plage horaire <abbr class="required" title="obligatoire">*</abbr></legend><div class="cz-slot-times">';
+	foreach ( $times as $time ) {
+		printf(
+			'<label class="cz-slot-time"><input type="radio" name="cz_slot_time" value="%1$s"><span>%2$s<small class="cz-slot-full">Complet</small></span></label>',
+			esc_attr( $time ),
+			esc_html( $time )
+		);
+	}
+	echo '</div></fieldset>';
+	echo '<input type="hidden" name="cz_slot_type" value="' . esc_attr( $type ) . '">';
+	echo '</section>';
+}
+
+/* Plages complètes ou passées : désactivées selon le jour choisi */
+add_action( 'wp_footer', function () {
+	if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || is_order_received_page() ) {
+		return;
+	}
+	?>
+	<script>
+	document.addEventListener( 'change', function ( e ) {
+		if ( 'cz_slot_day' !== e.target.name ) {
+			return;
+		}
+		var full = JSON.parse( e.target.dataset.full || '[]' );
+		document.querySelectorAll( 'input[name="cz_slot_time"]' ).forEach( function ( input ) {
+			var off = full.indexOf( input.value ) !== -1;
+			input.disabled = off;
+			input.closest( 'label' ).classList.toggle( 'is-full', off );
+			if ( off ) {
+				input.checked = false;
+			}
+		} );
+	} );
+	</script>
+	<?php
+} );
+
+/* Vérification : jour et plage obligatoires et encore disponibles */
+add_action( 'woocommerce_after_checkout_validation', function ( $data, $errors ) {
+	if ( ! WC()->cart || ! WC()->cart->needs_shipping() ) {
+		return;
+	}
+	$type   = cz_cart_slot_type();
+	$what   = 'pickup' === $type ? 'de retrait' : 'de livraison';
+	$day    = sanitize_text_field( wp_unslash( $_POST['cz_slot_day'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+	$time   = sanitize_text_field( wp_unslash( $_POST['cz_slot_time'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+	$days   = wp_list_pluck( cz_slot_days( $type ), 'full', 'date' );
+
+	if ( '' === $day ) {
+		$errors->add( 'cz_slot', 'Veuillez choisir un jour ' . $what . '.' );
+	} elseif ( ! isset( $days[ $day ] ) ) {
+		$errors->add( 'cz_slot', 'Ce jour ' . $what . ' n’est plus disponible, merci d’en choisir un autre.' );
+	}
+	if ( '' === $time ) {
+		$errors->add( 'cz_slot', 'Veuillez choisir une plage horaire ' . $what . '.' );
+	} elseif ( ! in_array( $time, cz_slot_times( $type ), true ) || ( isset( $days[ $day ] ) && in_array( $time, $days[ $day ], true ) ) ) {
+		$errors->add( 'cz_slot', 'Cette plage horaire est complète, merci d’en choisir une autre.' );
+	}
+}, 10, 2 );
+
+/* Enregistrement dans la commande */
+add_action( 'woocommerce_checkout_create_order', function ( $order ) {
+	if ( empty( $_POST['cz_slot_day'] ) || empty( $_POST['cz_slot_time'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		return;
+	}
+	$order->update_meta_data( '_cz_slot_type', cz_cart_slot_type() );
+	$order->update_meta_data( '_cz_slot_day', sanitize_text_field( wp_unslash( $_POST['cz_slot_day'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
+	$order->update_meta_data( '_cz_slot_time', sanitize_text_field( wp_unslash( $_POST['cz_slot_time'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
+} );
+
+/* « Retrait le mardi 27 octobre, entre 10h00 et 12h00 » (vide si pas de créneau) */
+function cz_order_slot_text( $order, $with_type = true ) {
+	if ( ! $order instanceof WC_Order || ! $order->get_meta( '_cz_slot_day' ) ) {
+		return '';
+	}
+	$text = cz_slot_date_label( $order->get_meta( '_cz_slot_day' ) ) . ', ' . cz_slot_time_label( $order->get_meta( '_cz_slot_time' ) );
+	if ( ! $with_type ) {
+		return $text;
+	}
+	return ( 'pickup' === $order->get_meta( '_cz_slot_type' ) ? 'Retrait le ' : 'Livraison le ' ) . $text;
+}
+
+/* Carte « Mon créneau » (page de confirmation, détail de commande) */
+function cz_slot_card( $order ) {
+	$text = cz_order_slot_text( $order );
+	if ( $text ) {
+		echo '<section class="cz-card cz-slot-card"><h2 class="cz-card-title">Mon créneau</h2><p>' . esc_html( $text ) . '</p></section>';
+	}
+}
+
+add_action( 'woocommerce_view_order', function ( $order_id ) {
+	cz_slot_card( wc_get_order( $order_id ) );
+}, 5 );
+
+/* E-mails : créneau rappelé après le tableau de la commande */
+add_action( 'woocommerce_email_after_order_table', function ( $order, $sent_to_admin, $plain_text ) {
+	$text = cz_order_slot_text( $order );
+	if ( ! $text ) {
+		return;
+	}
+	if ( $plain_text ) {
+		echo "\n" . esc_html( mb_strtoupper( 'Votre créneau' ) . ' : ' . $text ) . "\n";
+		return;
+	}
+	echo '<table class="cz-email-card" border="0" cellpadding="0" cellspacing="0" width="100%" role="presentation"><tr><td class="cz-email-card-cell">';
+	echo '<h2>' . ( $sent_to_admin ? 'Créneau choisi' : 'Votre créneau' ) . '</h2><p><strong>' . esc_html( $text ) . '</strong></p>';
+	echo '</td></tr></table>';
+}, 5, 3 );
+
+/* Back office : créneau dans la commande et dans la colonne « Réception » */
+add_action( 'woocommerce_admin_order_data_after_shipping_address', function ( $order ) {
+	$text = cz_order_slot_text( $order );
+	if ( $text ) {
+		echo '<p><strong>Créneau :</strong><br>' . esc_html( $text ) . '</p>';
+	}
+} );
+
+$cz_slot_column = function ( $column, $order ) {
+	$order = $order instanceof WC_Order ? $order : wc_get_order( $order );
+	if ( 'cz_reception' === $column && $order && $order->get_meta( '_cz_slot_day' ) ) {
+		$d = DateTimeImmutable::createFromFormat( 'Y-m-d', $order->get_meta( '_cz_slot_day' ) );
+		echo '<br><small>' . esc_html( ( $d ? $d->format( 'd/m' ) : '' ) . ' · ' . $order->get_meta( '_cz_slot_time' ) ) . '</small>';
+	}
+};
+add_action( 'manage_woocommerce_page_wc-orders_custom_column', $cz_slot_column, 20, 2 );
+add_action( 'manage_shop_order_posts_custom_column', $cz_slot_column, 20, 2 );
+
+/* Page de réglages : WooCommerce › Créneaux */
+add_action( 'admin_menu', function () {
+	add_submenu_page( 'woocommerce', 'Créneaux de livraison et de retrait', 'Créneaux', 'manage_woocommerce', 'cz-creneaux', 'cz_slot_settings_page' );
+}, 63 );
+
+add_action( 'admin_init', function () {
+	register_setting(
+		'cz_slots',
+		'cz_slots',
+		array(
+			'type'              => 'array',
+			'sanitize_callback' => function ( $input ) {
+				$input = (array) $input;
+				$days  = fn( $key ) => array_values( array_intersect( array_map( 'intval', (array) ( $input[ $key ] ?? array() ) ), range( 1, 7 ) ) );
+				return array(
+					'pickup_days'    => $days( 'pickup_days' ),
+					'pickup_times'   => sanitize_textarea_field( $input['pickup_times'] ?? '' ),
+					'pickup_delay'   => max( 0, (int) ( $input['pickup_delay'] ?? 0 ) ),
+					'delivery_days'  => $days( 'delivery_days' ),
+					'delivery_times' => sanitize_textarea_field( $input['delivery_times'] ?? '' ),
+					'delivery_delay' => max( 0, (int) ( $input['delivery_delay'] ?? 0 ) ),
+					'nb_days'        => min( 30, max( 1, (int) ( $input['nb_days'] ?? 7 ) ) ),
+					'capacity'       => max( 0, (int) ( $input['capacity'] ?? 0 ) ),
+				);
+			},
+		)
+	);
+} );
+
+add_filter( 'option_page_capability_cz_slots', fn() => 'manage_woocommerce' );
+
+function cz_slot_settings_page() {
+	$s    = cz_slot_settings();
+	$jour = cz_day_names();
+	?>
+	<div class="wrap">
+		<h1>Créneaux de livraison et de retrait</h1>
+		<p>À la validation de sa commande, le client choisit un jour puis une plage horaire, selon son mode de réception.</p>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'cz_slots' ); ?>
+			<?php foreach ( array( 'pickup' => 'Retrait en boutique', 'delivery' => 'Livraison à domicile' ) as $type => $title ) : ?>
+				<h2><?php echo esc_html( $title ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">Jours proposés</th>
+						<td>
+							<?php foreach ( $jour as $n => $name ) : ?>
+								<label style="margin-right:14px;"><input type="checkbox" name="cz_slots[<?php echo esc_attr( $type ); ?>_days][]" value="<?php echo esc_attr( $n ); ?>" <?php checked( in_array( $n, array_map( 'intval', (array) $s[ $type . '_days' ] ), true ) ); ?>> <?php echo esc_html( ucfirst( $name ) ); ?></label>
+							<?php endforeach; ?>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="cz-<?php echo esc_attr( $type ); ?>-times">Plages horaires</label></th>
+						<td>
+							<textarea id="cz-<?php echo esc_attr( $type ); ?>-times" name="cz_slots[<?php echo esc_attr( $type ); ?>_times]" rows="4" class="regular-text"><?php echo esc_textarea( $s[ $type . '_times' ] ); ?></textarea>
+							<p class="description">Une plage par ligne, par exemple : 10h00 - 12h00</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="cz-<?php echo esc_attr( $type ); ?>-delay">Délai de préparation (jours)</label></th>
+						<td>
+							<input type="number" min="0" id="cz-<?php echo esc_attr( $type ); ?>-delay" name="cz_slots[<?php echo esc_attr( $type ); ?>_delay]" value="<?php echo esc_attr( $s[ $type . '_delay' ] ); ?>" class="small-text">
+							<p class="description">1 = premier créneau proposé demain. 0 = dès aujourd’hui (les plages qui commencent dans moins d’une heure sont masquées).</p>
+						</td>
+					</tr>
+				</table>
+			<?php endforeach; ?>
+			<h2>Pour les deux</h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="cz-nb-days">Nombre de jours proposés</label></th>
+					<td><input type="number" min="1" max="30" id="cz-nb-days" name="cz_slots[nb_days]" value="<?php echo esc_attr( $s['nb_days'] ); ?>" class="small-text"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="cz-capacity">Commandes maximum par créneau</label></th>
+					<td>
+						<input type="number" min="0" id="cz-capacity" name="cz_slots[capacity]" value="<?php echo esc_attr( $s['capacity'] ); ?>" class="small-text">
+						<p class="description">Quand ce nombre est atteint, la plage s’affiche « Complet ». 0 = sans limite.</p>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button( 'Enregistrer les créneaux' ); ?>
+		</form>
+	</div>
+	<?php
+}
