@@ -252,7 +252,7 @@ function cz_footer() {
  *    catégories), pleine largeur partout ailleurs
  * ====================================================================== */
 function cz_is_catalogue() {
-	return function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() );
+	return function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() || ( is_search() && 'product' === get_query_var( 'post_type' ) ) );
 }
 
 add_filter( 'body_class', function ( $classes ) {
@@ -293,18 +293,29 @@ function cz_catalogue_categories() {
 	);
 }
 
-/* Compteur + pilule de prix (la pilule n'est visible que sur mobile,
-   sur ordinateur elle est dans la barre latérale) */
-add_action( 'woocommerce_before_shop_loop', function () {
-	$total = (int) wc_get_loop_prop( 'total' );
-	$range = cz_price_range();
+/* Compteur + bouton « Filtrer » (mobile ; sur ordinateur les filtres sont dans la barre latérale) */
+function cz_shop_bar( $total ) {
+	$active = count( cz_active_filters() );
 	echo '<div class="cz-shop-bar">';
-	printf( '<p class="cz-result-count">%d %s</p>', $total, $total > 1 ? 'produits' : 'produit' ); // phpcs:ignore WordPress.Security.EscapeOutput
-	if ( $range ) {
-		echo '<span class="cz-pill cz-price-pill"><span>Prix</span> ' . esc_html( $range ) . '</span>';
-	}
-	echo '</div>';
+	printf( '<p class="cz-result-count">%d %s</p>', (int) $total, $total > 1 ? 'produits' : 'produit' );
+	echo '<details class="cz-filters-mobile"><summary class="cz-pill">Filtrer' . ( $active ? ' (' . (int) $active . ')' : '' ) . '</summary>';
+	cz_filters_form( 'm' );
+	echo '</details></div>';
+	cz_active_filters_html();
+}
+
+add_action( 'woocommerce_before_shop_loop', function () {
+	cz_shop_bar( (int) wc_get_loop_prop( 'total' ) );
 }, 20 );
+
+/* Aucun résultat : on garde les filtres et on propose de les effacer */
+add_action( 'woocommerce_no_products_found', function () {
+	if ( ! cz_active_filters() ) {
+		return;
+	}
+	cz_shop_bar( 0 );
+	echo '<p class="cz-no-results">Aucun produit ne correspond à votre recherche. <a href="' . esc_url( cz_filter_base_url() ) . '">Effacer les filtres</a></p>';
+}, 5 );
 
 /* Mobile : catégories en ligne sous le titre */
 add_action( 'storefront_before_content', function () {
@@ -382,11 +393,8 @@ function cz_catalogue_sidebar() {
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
-		<?php $range = cz_price_range(); ?>
-		<?php if ( $range ) : ?>
-			<p class="cz-sidebar-title">Prix</p>
-			<span class="cz-pill"><?php echo esc_html( $range ); ?></span>
-		<?php endif; ?>
+		<p class="cz-sidebar-title cz-sidebar-title--line">Affiner</p>
+		<?php cz_filters_form( 'd' ); ?>
 	</aside>
 	<?php
 }
@@ -3208,4 +3216,255 @@ add_action( 'wp', function () {
    au lieu de la miniature carrée qui coupe les coffrets sur les côtés) */
 add_filter( 'single_product_archive_thumbnail_size', function ( $size ) {
 	return 'cz_new' === wc_get_loop_prop( 'name' ) ? 'woocommerce_single' : $size;
+} );
+
+/* =========================================================================
+ * 28. Factures PDF (itération 17)
+ *     Extension « PDF Invoices & Packing Slips for WooCommerce ».
+ *     Modèle personnalisé : woocommerce/pdf/Cluizel/ (logo, coordonnées,
+ *     couleurs). Ici : le bouton « Télécharger ma facture » dans Mon compte
+ *     (nos gabarits n'affichent pas la colonne « Actions » de WooCommerce).
+ * ====================================================================== */
+
+/* Lien de la facture fourni par l'extension (vide si pas encore disponible) */
+function cz_invoice_url( $order ) {
+	if ( ! $order instanceof WC_Order || ! function_exists( 'wc_get_account_orders_actions' ) ) {
+		return '';
+	}
+	$actions = wc_get_account_orders_actions( $order );
+	return isset( $actions['invoice']['url'] ) ? $actions['invoice']['url'] : '';
+}
+
+function cz_invoice_button( $order, $small = false ) {
+	$url = cz_invoice_url( $order );
+	if ( ! $url ) {
+		return;
+	}
+	printf(
+		'<a class="cz-invoice-link%1$s" href="%2$s" target="_blank" rel="noopener">%3$s<span class="screen-reader-text"> (PDF, commande N°%4$s)</span></a>',
+		$small ? ' is-small' : '',
+		esc_url( $url ),
+		$small ? 'Facture' : 'Télécharger ma facture',
+		esc_html( $order->get_order_number() )
+	);
+}
+
+/* Détail d'une commande (Mon compte › Voir la commande) */
+add_action( 'woocommerce_view_order', function ( $order_id ) {
+	$order = wc_get_order( $order_id );
+	if ( cz_invoice_url( $order ) ) {
+		echo '<p class="cz-invoice-row">';
+		cz_invoice_button( $order );
+		echo '</p>';
+	}
+}, 15 );
+
+/* =========================================================================
+ * 29. Recherche et filtrage (itération 18)
+ *     Formulaire dans la barre latérale (et bouton « Filtrer » sur mobile) :
+ *     recherche par mot-clé, prix minimum / maximum, attribut « Format »
+ *     (la taille) et « Emballage ». Les paramètres sont ceux que WooCommerce
+ *     comprend nativement : s, min_price, max_price, filter_format,
+ *     filter_emballage (+ query_type_… = or).
+ * ====================================================================== */
+
+/* Attributs proposés en filtre : slug => libellé */
+function cz_filter_attributes() {
+	return array(
+		'format'    => 'Format',
+		'emballage' => 'Emballage',
+	);
+}
+
+/* Cases cochées → « a,b » (format attendu par WooCommerce) */
+add_action( 'init', function () {
+	foreach ( array_keys( cz_filter_attributes() ) as $slug ) {
+		$key = 'filter_' . $slug;
+		if ( isset( $_GET[ $key ] ) && is_array( $_GET[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$_GET[ $key ] = implode( ',', array_map( 'sanitize_title', wp_unslash( $_GET[ $key ] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		}
+	}
+}, 1 );
+
+/* Adresse de la page en cours sans les filtres (carte, catégorie ou collection) */
+function cz_filter_base_url() {
+	if ( is_product_taxonomy() ) {
+		$link = get_term_link( get_queried_object() );
+		if ( ! is_wp_error( $link ) ) {
+			return $link;
+		}
+	}
+	return wc_get_page_permalink( 'shop' );
+}
+
+/* Filtres choisis : [ [ libellé, adresse pour le retirer ], … ] */
+function cz_active_filters() {
+	// phpcs:disable WordPress.Security.NonceVerification
+	$active = array();
+	$here   = remove_query_arg( 'paged', add_query_arg( null, null ) );
+	$here   = preg_replace( '#/page/\d+/?#', '/', $here );
+	$search = get_search_query();
+	if ( '' !== $search ) {
+		$active[] = array( '« ' . $search . ' »', remove_query_arg( array( 's', 'post_type' ), $here ) );
+	}
+	$min = isset( $_GET['min_price'] ) ? wc_clean( wp_unslash( $_GET['min_price'] ) ) : '';
+	$max = isset( $_GET['max_price'] ) ? wc_clean( wp_unslash( $_GET['max_price'] ) ) : '';
+	if ( '' !== $min || '' !== $max ) {
+		$label    = '' !== $min && '' !== $max ? sprintf( '%s € à %s €', $min, $max ) : ( '' !== $min ? 'À partir de ' . $min . ' €' : 'Jusqu’à ' . $max . ' €' );
+		$active[] = array( $label, remove_query_arg( array( 'min_price', 'max_price' ), $here ) );
+	}
+	foreach ( cz_filter_attributes() as $slug => $name ) {
+		$key    = 'filter_' . $slug;
+		$chosen = isset( $_GET[ $key ] ) && '' !== $_GET[ $key ] ? array_filter( explode( ',', wc_clean( wp_unslash( $_GET[ $key ] ) ) ) ) : array();
+		foreach ( $chosen as $term_slug ) {
+			$term = get_term_by( 'slug', $term_slug, 'pa_' . $slug );
+			if ( ! $term ) {
+				continue;
+			}
+			$rest     = array_diff( $chosen, array( $term_slug ) );
+			$url      = $rest ? add_query_arg( $key, implode( ',', $rest ), $here ) : remove_query_arg( array( $key, 'query_type_' . $slug ), $here );
+			$active[] = array( $term->name, $url );
+		}
+	}
+	// phpcs:enable
+	return $active;
+}
+
+/* Pastilles des filtres actifs, au-dessus de la grille */
+function cz_active_filters_html() {
+	$active = cz_active_filters();
+	if ( ! $active ) {
+		return;
+	}
+	echo '<div class="cz-active-filters" aria-label="Filtres actifs"><span class="cz-active-filters-label">Filtres :</span>';
+	foreach ( $active as $filter ) {
+		printf(
+			'<a class="cz-filter-chip" href="%1$s">%2$s<span aria-hidden="true"> ×</span><span class="screen-reader-text"> (retirer ce filtre)</span></a>',
+			esc_url( $filter[1] ),
+			esc_html( $filter[0] )
+		);
+	}
+	echo '<a class="cz-filters-clear" href="' . esc_url( cz_filter_base_url() ) . '">Tout effacer</a></div>';
+}
+
+/* Le formulaire de filtres ($id : « d » ordinateur, « m » mobile, pour des id uniques) */
+function cz_filters_form( $id ) {
+	// phpcs:disable WordPress.Security.NonceVerification
+	$search = get_search_query();
+	$min    = isset( $_GET['min_price'] ) ? wc_clean( wp_unslash( $_GET['min_price'] ) ) : '';
+	$max    = isset( $_GET['max_price'] ) ? wc_clean( wp_unslash( $_GET['max_price'] ) ) : '';
+	$range  = cz_price_bounds();
+	?>
+	<form class="cz-filters" action="<?php echo esc_url( cz_filter_base_url() ); ?>" method="get" role="search">
+		<div class="cz-filter">
+			<label class="cz-filter-title" for="cz-s-<?php echo esc_attr( $id ); ?>">Rechercher</label>
+			<input type="search" id="cz-s-<?php echo esc_attr( $id ); ?>" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="Nom, ingrédient…">
+			<input type="hidden" name="post_type" value="product">
+		</div>
+
+		<fieldset class="cz-filter">
+			<legend class="cz-filter-title">Prix</legend>
+			<div class="cz-price-fields">
+				<label><span class="screen-reader-text">Prix minimum</span>
+					<input type="number" name="min_price" min="0" step="1" inputmode="numeric" value="<?php echo esc_attr( $min ); ?>" placeholder="<?php echo esc_attr( $range[0] ); ?> €">
+				</label>
+				<span aria-hidden="true">à</span>
+				<label><span class="screen-reader-text">Prix maximum</span>
+					<input type="number" name="max_price" min="0" step="1" inputmode="numeric" value="<?php echo esc_attr( $max ); ?>" placeholder="<?php echo esc_attr( $range[1] ); ?> €">
+				</label>
+			</div>
+		</fieldset>
+
+		<?php foreach ( cz_filter_attributes() as $slug => $name ) : ?>
+			<?php
+			$terms  = get_terms(
+				array(
+					'taxonomy'   => 'pa_' . $slug,
+					'hide_empty' => true,
+				)
+			);
+			$chosen = isset( $_GET[ 'filter_' . $slug ] ) ? explode( ',', wc_clean( wp_unslash( $_GET[ 'filter_' . $slug ] ) ) ) : array();
+			if ( ! $terms || is_wp_error( $terms ) ) {
+				continue;
+			}
+			?>
+			<fieldset class="cz-filter">
+				<legend class="cz-filter-title"><?php echo esc_html( $name ); ?></legend>
+				<ul class="cz-filter-options">
+					<?php foreach ( $terms as $term ) : ?>
+						<li>
+							<label>
+								<input type="checkbox" name="filter_<?php echo esc_attr( $slug ); ?>[]" value="<?php echo esc_attr( $term->slug ); ?>" <?php checked( in_array( $term->slug, $chosen, true ) ); ?>>
+								<span><?php echo esc_html( $term->name ); ?></span>
+								<span class="cz-filter-count"><?php echo (int) $term->count; ?></span>
+							</label>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+				<input type="hidden" name="query_type_<?php echo esc_attr( $slug ); ?>" value="or">
+			</fieldset>
+		<?php endforeach; ?>
+
+		<div class="cz-filter-actions">
+			<button type="submit" class="cz-btn">Appliquer</button>
+			<?php if ( cz_active_filters() ) : ?>
+				<a class="cz-filters-clear" href="<?php echo esc_url( cz_filter_base_url() ); ?>">Effacer</a>
+			<?php endif; ?>
+		</div>
+	</form>
+	<?php
+	// phpcs:enable
+}
+
+/* Prix le plus bas / le plus haut de la carte (arrondis aux 5 €), pour les exemples des champs */
+function cz_price_bounds() {
+	global $wpdb;
+	$row = $wpdb->get_row(
+		"SELECT MIN(l.min_price) AS min_price, MAX(l.max_price) AS max_price
+		 FROM {$wpdb->wc_product_meta_lookup} l
+		 INNER JOIN {$wpdb->posts} p ON p.ID = l.product_id
+		 WHERE p.post_type = 'product' AND p.post_status = 'publish'"
+	);
+	if ( ! $row || null === $row->min_price ) {
+		return array( 0, 100 );
+	}
+	return array( (int) floor( $row->min_price / 5 ) * 5, (int) ceil( $row->max_price / 5 ) * 5 );
+}
+
+/* Champs vides retirés de l'adresse (pas de « ?s=&min_price= ») */
+add_action( 'wp_footer', function () {
+	if ( ! cz_is_catalogue() ) {
+		return;
+	}
+	?>
+	<script>
+	document.querySelectorAll( '.cz-filters' ).forEach( function ( form ) {
+		form.addEventListener( 'submit', function () {
+			var s = form.querySelector( '[name="s"]' );
+			form.querySelectorAll( 'input' ).forEach( function ( input ) {
+				if ( ( input.type === 'search' || input.type === 'number' ) && input.value === '' ) {
+					input.disabled = true;
+				}
+				if ( input.name === 'post_type' && s && s.value === '' ) {
+					input.disabled = true;
+				}
+				if ( input.name.indexOf( 'query_type_' ) === 0 ) {
+					var slug = input.name.replace( 'query_type_', '' );
+					if ( ! form.querySelector( '[name="filter_' + slug + '[]"]:checked' ) ) {
+						input.disabled = true;
+					}
+				}
+			} );
+		} );
+	} );
+	</script>
+	<?php
+} );
+
+/* Recherche de produits : on reste sur la mise en page de la carte, avec un titre clair */
+add_filter( 'woocommerce_page_title', function ( $title ) {
+	if ( is_search() && 'product' === get_query_var( 'post_type' ) ) {
+		return 'Recherche : « ' . get_search_query() . ' »';
+	}
+	return $title;
 } );

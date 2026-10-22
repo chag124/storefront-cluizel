@@ -4923,3 +4923,288 @@ body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-fee-hint td::bef
   margin: 0;
   object-fit: contain;
 }
+
+/* ==========================================================================
+   Factures PDF dans Mon compte (itération 17)
+   ========================================================================== */
+.cz-account-orders-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 20px 0;
+}
+
+.cz-account-orders-actions .cz-cancel-order {
+  margin: 0;
+}
+
+#page .cz-invoice-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: var(--cz-pill);
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+#page .cz-invoice-link::before {
+  content: "↓";
+  font-size: 13px;
+}
+
+#page .cz-invoice-link:hover {
+  opacity: 0.85;
+}
+
+#page .cz-invoice-link.is-small {
+  padding: 5px 14px;
+  border: 1px solid var(--cz-noir);
+  background: var(--cz-blanc);
+  color: var(--cz-noir);
+  font-size: 12px;
+}
+
+#page .cz-invoice-link.is-small:hover {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+  opacity: 1;
+}
+
+#page .cz-account-history li {
+  grid-template-columns: 1fr 1fr 1.4fr auto auto;
+}
+
+.cz-account-history-invoice:empty {
+  display: none;
+}
+
+.cz-invoice-row {
+  margin: 24px 0 0;
+}
+
+@media (max-width: 767px) {
+  .cz-account-orders-actions {
+    margin: 20px 0 0;
+  }
+
+  #page .cz-account-history li {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+/* ==========================================================================
+   Recherche et filtrage (itération 18)
+   ========================================================================== */
+.cz-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 230px;
+  margin: 0 0 40px;
+}
+
+.cz-filter {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Sans le fond gris que Storefront donne aux groupes de champs */
+#page .cz-filters fieldset.cz-filter,
+#page .cz-filters .cz-price-fields,
+#page .cz-filters .cz-filter-options,
+#page .cz-filters legend {
+  padding-right: 0;
+  padding-left: 0;
+  background: transparent;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+#page .cz-filter-title {
+  display: block;
+  margin: 0 0 12px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+#page .cz-filters input[type="search"],
+#page .cz-filters input[type="number"] {
+  width: 100%;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+  box-shadow: none;
+  color: var(--cz-noir);
+  font-family: var(--cz-font-texte);
+  font-size: 14px;
+}
+
+#page .cz-filters input:focus-visible {
+  outline: 2px solid var(--cz-noir);
+  outline-offset: 2px;
+}
+
+.cz-price-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+#page .cz-price-fields input[type="number"] {
+  padding: 0 12px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.cz-price-fields input::-webkit-outer-spin-button,
+.cz-price-fields input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.cz-filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cz-filter-options li {
+  margin: 0;
+}
+
+.cz-filter-options label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cz-filter-options input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--cz-noir);
+}
+
+.cz-filter-count {
+  color: #5c5c5c;
+  font-size: 12px;
+}
+
+.cz-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#page .cz-filter-actions .cz-btn {
+  border: 0;
+  border-radius: var(--cz-pill);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#page .cz-filters-clear {
+  color: var(--cz-noir);
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* Pastilles des filtres actifs */
+.cz-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: -20px 0 32px;
+  font-size: 13px;
+}
+
+#page .cz-filter-chip {
+  padding: 5px 14px;
+  border: 1px solid var(--cz-noir);
+  border-radius: var(--cz-pill);
+  background: var(--cz-blanc);
+  color: var(--cz-noir);
+  text-decoration: none;
+}
+
+#page .cz-filter-chip:hover {
+  background: var(--cz-noir);
+  color: var(--cz-blanc);
+}
+
+.cz-no-results {
+  padding: 20px 24px;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-beige);
+}
+
+/* Bouton « Filtrer » : seulement sur mobile */
+.cz-filters-mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .cz-shop-bar {
+    flex-wrap: wrap;
+  }
+
+  .cz-filters-mobile {
+    display: block;
+  }
+
+  .cz-filters-mobile[open] {
+    flex-basis: 100%;
+    text-align: right;
+  }
+
+  .cz-filters-mobile summary {
+    display: inline-block;
+  }
+
+  .cz-filters-mobile summary {
+    padding: 9px 26px;
+    background: var(--cz-blanc);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .cz-filters-mobile summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .cz-filters-mobile[open] summary {
+    background: var(--cz-noir);
+    color: var(--cz-blanc);
+  }
+
+  .cz-filters-mobile .cz-filters {
+    width: 100%;
+    max-width: none;
+    margin: 12px 0 0;
+    text-align: left;
+    padding: 24px 20px;
+    border-radius: var(--cz-radius);
+    background: var(--cz-beige);
+  }
+
+  .cz-active-filters {
+    margin: 0 0 24px;
+  }
+}
