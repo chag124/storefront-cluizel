@@ -45,7 +45,9 @@ La base de données du Dev remplace celle de la Prod. **Toujours sauvegarder la 
 # Dev
 ddev wp db export sae301-dev.sql
 scp sae301-dev.sql gautier58@mmi.unilim.fr:~/
-rsync -avz wp-content/uploads/ gautier58@mmi.unilim.fr:~/public_html/sae301/wp-content/uploads/
+rsync -avz --exclude 'wpo_wcpdf/' wp-content/uploads/ gautier58@mmi.unilim.fr:~/public_html/sae301/wp-content/uploads/
+
+# le dossier wpo_wcpdf est propre à chaque environnement, il est exclu de rsync. Si les factures s'affichent avec des caractères illisibles en Prod : WooCommerce > Factures PDF> Avancé > "Réinstaller les polices"
 
 # Prod
 wp db export ~/sauvegarde-prod.sql
