@@ -227,9 +227,8 @@ add_filter( 'woocommerce_breadcrumb_defaults', function ( $defaults ) {
  * ====================================================================== */
 add_action( 'storefront_footer', 'cz_footer', 10 );
 function cz_footer() {
-	$cgv_id  = function_exists( 'wc_terms_and_conditions_page_id' ) ? wc_terms_and_conditions_page_id() : 0;
-	$cgv     = $cgv_id ? get_permalink( $cgv_id ) : '#';
-	$mentions = get_privacy_policy_url() ? get_privacy_policy_url() : '#';
+	$cgv      = cz_legal_url( 'cgv' );
+	$mentions = cz_legal_url( 'mentions' );
 	?>
 	<div class="cz-footer">
 		<a class="cz-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>">CLUIZEL</a>
@@ -4058,3 +4057,80 @@ add_filter( 'manage_edit-product_columns', function ( $columns ) {
 	unset( $columns['wpseo-score'], $columns['wpseo-score-readability'], $columns['wpseo-links'], $columns['wpseo-linked'] );
 	return $columns;
 }, 30 );
+
+/* =========================================================================
+ * 33. Mentions légales et CGV (itération 22)
+ *     Pages « Mentions légales » (slug mentions-legales) et « Conditions
+ *     générales de vente » (page CGV choisie dans WooCommerce › Réglages ›
+ *     Avancé). Acceptation obligatoire des CGV avant de commander.
+ * ====================================================================== */
+
+/* Adresse des pages légales : 'mentions', 'cgv' ou 'confidentialite' */
+function cz_legal_url( $which ) {
+	if ( 'cgv' === $which ) {
+		$id = function_exists( 'wc_terms_and_conditions_page_id' ) ? wc_terms_and_conditions_page_id() : 0;
+		if ( ! $id ) {
+			$page = get_page_by_path( 'conditions-generales-de-vente' );
+			$id   = $page ? $page->ID : 0;
+		}
+		return $id ? get_permalink( $id ) : '#';
+	}
+	if ( 'confidentialite' === $which ) {
+		return get_privacy_policy_url() ?: '#';
+	}
+	$page = get_page_by_path( 'mentions-legales' );
+	return $page ? get_permalink( $page ) : ( get_privacy_policy_url() ?: '#' );
+}
+
+/* Classe « cz-legal » sur les pages légales (mise en page de lecture) */
+function cz_is_legal_page() {
+	if ( ! is_page() ) {
+		return false;
+	}
+	$id     = get_queried_object_id();
+	$terms  = function_exists( 'wc_terms_and_conditions_page_id' ) ? (int) wc_terms_and_conditions_page_id() : 0;
+	$slug   = get_post_field( 'post_name', $id );
+	return $id === $terms || $id === (int) get_option( 'wp_page_for_privacy_policy' ) || in_array( $slug, array( 'mentions-legales', 'conditions-generales-de-vente' ), true );
+}
+
+add_filter( 'body_class', function ( $classes ) {
+	if ( cz_is_legal_page() ) {
+		$classes[] = 'cz-legal';
+	}
+	return $classes;
+} );
+
+/* Pas de fil d'Ariane Storefront en double : « Accueil / Mentions légales » suffit */
+add_action( 'storefront_page_after', function () {
+	if ( cz_is_legal_page() ) {
+		echo '<p class="cz-legal-back"><a href="' . esc_url( home_url( '/' ) ) . '">← Retour à l’accueil</a></p>';
+	}
+} );
+
+/* Case CGV : le lien ouvre la page des CGV dans un nouvel onglet
+   (au lieu d'afficher tout le texte dans le formulaire) */
+add_action( 'wp', function () {
+	remove_action( 'woocommerce_checkout_terms_and_conditions', 'wc_terms_and_conditions_page_content', 30 );
+} );
+
+/* Message si la case n'est pas cochée */
+add_filter( 'gettext', function ( $translation, $text, $domain ) {
+	if ( 'woocommerce' === $domain && 'Please read and accept the terms and conditions to proceed with your order.' === $text ) {
+		return 'Veuillez accepter les conditions générales de vente pour valider votre commande.';
+	}
+	return $translation;
+}, 20, 3 );
+
+/* Preuve d'acceptation : date et heure enregistrées dans la commande */
+add_action( 'woocommerce_checkout_create_order', function ( $order ) {
+	if ( ! empty( $_POST['terms'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		$order->update_meta_data( '_cz_terms_accepted', current_time( 'mysql' ) );
+	}
+} );
+
+add_action( 'woocommerce_admin_order_data_after_billing_address', function ( $order ) {
+	$date = $order->get_meta( '_cz_terms_accepted' );
+	if ( $date ) {
+		echo '<p><strong>CGV acceptées :</strong><br>le ' . esc_html( date_i18n( 'd/m/Y à H:i', strtotime( $date ) ) ) . '</p>';
+	}
+} );

@@ -5436,3 +5436,108 @@ body.woocommerce-cart #page .cart_totals table.shop_table tr.cz-weight-grid td {
   margin: 4px 0 0;
   font-size: 14px;
 }
+
+/* ==========================================================================
+   Pages légales : mentions légales, CGV, confidentialité (itération 22)
+   ========================================================================== */
+.cz-legal .site-main {
+  max-width: 820px;
+}
+
+.cz-legal .entry-header {
+  margin-bottom: 40px;
+  padding: 0;
+  border: 0;
+}
+
+.cz-legal .entry-header .entry-title {
+  margin: 24px 0 0;
+  font-size: clamp(36px, 5vw, 56px);
+  line-height: 1.1;
+}
+
+.cz-legal .entry-content {
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.cz-legal .entry-content h2 {
+  margin: 48px 0 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.cz-legal .entry-content h3 {
+  margin: 28px 0 10px;
+  font-size: 18px;
+}
+
+.cz-legal .entry-content p,
+.cz-legal .entry-content ul {
+  margin: 0 0 14px;
+}
+
+.cz-legal .entry-content ul {
+  margin-left: 20px;
+}
+
+/* Espace entre le titre et l'encadré (Storefront impose sa propre marge) */
+.cz-legal #page .entry-header {
+  margin-bottom: 40px;
+}
+
+/* Encadré beige : date de mise à jour, avertissement projet étudiant */
+.cz-legal .entry-content .cz-legal-note {
+  margin: 0 0 32px;
+  padding: 18px 22px;
+  border-radius: var(--cz-radius-sm);
+  background: var(--cz-beige);
+  font-size: 14px;
+}
+
+/* Sommaire */
+.cz-legal .entry-content .cz-legal-toc {
+  margin: 0 0 32px;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 32px;
+  font-size: 14px;
+}
+
+.cz-legal .entry-content .cz-legal-toc li {
+  margin: 0 0 6px;
+  break-inside: avoid;
+}
+
+.cz-legal .entry-content table {
+  width: 100%;
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.cz-legal .entry-content th,
+.cz-legal .entry-content td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+
+.cz-legal #page .entry-content table th,
+.cz-legal #page .entry-content table td {
+  background: transparent;
+}
+
+.cz-legal-back {
+  margin: 48px 0 0;
+  font-size: 14px;
+}
+
+@media (max-width: 767px) {
+  .cz-legal .entry-content .cz-legal-toc {
+    columns: 1;
+  }
+}
